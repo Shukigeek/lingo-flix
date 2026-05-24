@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,9 +43,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -70,6 +71,13 @@ import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
+
+data class SubtitleClip(
+    val text: String,
+    val startTimeMs: Long,
+    val endTimeMs: Long,
+    val videoUri: Uri
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -401,6 +409,10 @@ fun VideoPlayerScreen(
     // Confetti State
     var confettiState by remember { mutableStateOf<List<Party>>(emptyList()) }
     
+    // X-Ray State
+    var showXRay by remember { mutableStateOf(false) }
+    var xRayLine by remember { mutableStateOf("") }
+    
     val videoFileName = remember(videoUri) {
         if (videoUri.scheme == "file") File(videoUri.path!!).name else "unknown"
     }
@@ -542,6 +554,13 @@ fun VideoPlayerScreen(
         }
     }
 
+    if (showXRay) {
+        XRayDialog(
+            line = xRayLine,
+            onDismiss = { showXRay = false }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { ctx ->
@@ -675,18 +694,41 @@ fun VideoPlayerScreen(
                 }
 
                 // Favorite button directly below the sentence
-                IconButton(
-                    onClick = { onToggleFavorite(clipId) },
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Toggle Favorite",
-                        tint = if (isFavorite) Color(0xFFFFC107) else Color.White
-                    )
+                    IconButton(
+                        onClick = { onToggleFavorite(clipId) },
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "Toggle Favorite",
+                            tint = if (isFavorite) Color(0xFFFFC107) else Color.White
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    IconButton(
+                        onClick = { 
+                            xRayLine = currentClip.text
+                            showXRay = true 
+                        },
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Psychology,
+                            contentDescription = "Subtitle X-Ray",
+                            tint = Color.White
+                        )
+                    }
                 }
 
                 if (isQuizMode && !isChecked) {
@@ -766,6 +808,63 @@ fun VideoPlayerScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun XRayDialog(line: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Subtitle X-Ray Analysis", style = MaterialTheme.typography.headlineSmall)
+            }
+        },
+        text = {
+            Box(modifier = Modifier.heightIn(max = 400.dp)) {
+                LazyColumn {
+                    item {
+                        XRaySection("1. ORIGINAL LINE", line)
+                        XRaySection("2. NATURAL TRANSLATION", "This is where the human translation goes.")
+                        XRaySection("3. WHAT IT ACTUALLY MEANS", "Deep dive into the hidden meaning and subtext.")
+                        XRaySection("4. SLANG & EXPRESSIONS", "Slang breakdown and cultural idioms.")
+                        XRaySection("5. EMOTIONAL TONE", "The psychological energy of the line.")
+                        XRaySection("6. WHY NATIVES SAY IT THIS WAY", "Casual vs Textbook comparison.")
+                        XRaySection("7. PRONUNCIATION HINTS", "Reductions and connected speech.")
+                        XRaySection("8. CULTURAL CONTEXT", "References and social behavior.")
+                        XRaySection("9. SPEAK LIKE THE CHARACTER", "Casual, Confident, and Dramatic versions.")
+                        XRaySection("10. QUICK TAKEAWAY", "The one thing to remember forever.")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Got it!")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+fun XRaySection(title: String, content: String) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = content,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp).alpha(0.1f))
     }
 }
 
@@ -1226,13 +1325,6 @@ fun getVideoDuration(context: android.content.Context, file: File): String? {
         retriever.release()
     }
 }
-
-data class SubtitleClip(
-    val text: String,
-    val startTimeMs: Long,
-    val endTimeMs: Long,
-    val videoUri: Uri
-)
 
 fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
     val clips = mutableListOf<SubtitleClip>()
