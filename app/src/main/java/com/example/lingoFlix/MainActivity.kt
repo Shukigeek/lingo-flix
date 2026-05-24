@@ -61,6 +61,8 @@ import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.theme.LingoFlixTheme
 import com.example.lingoFlix.data.UserStatsManager
 import android.content.Intent
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -72,12 +74,13 @@ import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
 
+@Parcelize
 data class SubtitleClip(
     val text: String,
     val startTimeMs: Long,
     val endTimeMs: Long,
     val videoUri: Uri
-)
+) : Parcelable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,7 +120,7 @@ fun MainContent() {
     var selectedVideoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var isPlaying by rememberSaveable { mutableStateOf(false) }
     var showVideoList by rememberSaveable { mutableStateOf(false) }
-    var practiceClips by remember { mutableStateOf<List<SubtitleClip>?>(null) }
+    var practiceClips by rememberSaveable { mutableStateOf<List<SubtitleClip>?>(null) }
     var isQuizModeActive by rememberSaveable { mutableStateOf(false) }
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
 
@@ -1345,26 +1348,36 @@ fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
         val encoding = detectEncoding(bytes)
         val content = String(bytes, encoding)
         
-        // Split by both \r\n and \n to handle all OS types
-        val blocks = content.split(Regex("(\\r?\\n){2,}"))
-        
-        for (block in blocks) {
-            val lines = block.trim().lines()
-            if (lines.size >= 2) {
-                // Find time line (usually the second line, but let's be safe)
-                val timeLineIndex = lines.indexOfFirst { it.contains(" --> ") }
-                if (timeLineIndex != -1) {
-                    val times = lines[timeLineIndex].split(" --> ")
-                    if (times.size == 2) {
-                        val startTime = parseSrtTime(times[0])
-                        val endTime = parseSrtTime(times[1])
-                        val text = lines.drop(timeLineIndex + 1).joinToString("\n").trim()
-                        if (text.isNotEmpty()) {
-                            clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+        // A more robust line-by-line parsing approach
+        val lines = content.lines().map { it.trim() }
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            // Look for the time line (e.g., 00:00:20,000 --> 00:00:24,400)
+            if (line.contains(" --> ")) {
+                val times = line.split(" --> ")
+                if (times.size == 2) {
+                    val startTime = parseSrtTime(times[0])
+                    val endTime = parseSrtTime(times[1])
+                    
+                    // Collect all subsequent non-empty lines as text until the next empty line or index
+                    val textLines = mutableListOf<String>()
+                    i++
+                    while (i < lines.size && lines[i].isNotEmpty() && !lines[i].contains(" --> ")) {
+                        // Skip numeric index lines if they appear alone
+                        if (lines[i].toIntOrNull() == null) {
+                            textLines.add(lines[i])
                         }
+                        i++
                     }
+                    val text = textLines.joinToString("\n").trim()
+                    if (text.isNotEmpty()) {
+                        clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                    }
+                    continue // i is already incremented
                 }
             }
+            i++
         }
     } catch (e: Exception) {
         Log.e("SrtParser", "Error parsing SRT", e)
