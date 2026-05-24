@@ -492,6 +492,18 @@ fun VideoPlayerScreen(
     LaunchedEffect(clips, currentClipIndex) {
         clips?.let {
             val clip = it[currentClipIndex]
+            
+            // Check if we need to change the video source
+            if (exoPlayer.currentMediaItem?.localConfiguration?.uri != clip.videoUri) {
+                val mediaItemBuilder = MediaItem.Builder().setUri(clip.videoUri)
+                
+                // Add subtitles if not in quiz/clips mode (only for manual playback)
+                // In random/clips mode, we manage subtitles via our own UI
+                
+                exoPlayer.setMediaItem(mediaItemBuilder.build())
+                exoPlayer.prepare()
+            }
+
             exoPlayer.seekTo(clip.startTimeMs)
             exoPlayer.play()
         }
