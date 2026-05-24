@@ -632,7 +632,7 @@ fun VideoPlayerScreen(
                     val text = currentClip.text
                     val isHebrew = text.any { it in '\u0590'..'\u05FF' }
                     
-                    Column(modifier = Modifier.padding(20.dp).blur(if (isQuizMode && !isChecked) 10.dp else 0.dp)) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         CompositionLocalProvider(
                             LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
                         ) {
