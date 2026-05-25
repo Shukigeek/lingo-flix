@@ -72,6 +72,8 @@ import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
+import com.google.generativeai.GenerativeModel
+import com.google.generativeai.type.content
 
 data class SubtitleClip(
     val text: String,
@@ -259,13 +261,20 @@ fun MainContent() {
                 selectedVideoUri = uri
                 isPlaying = true
             },
-            onPracticeRequested = { file, isQuiz ->
-                val srtFile = File(file.parentFile, "${file.nameWithoutExtension}.srt")
+            onPracticeRequested = { videoFile, isQuiz ->
+                // Robust SRT finding
+                val videoName = videoFile.nameWithoutExtension.lowercase()
+                val videoDir = videoFile.parentFile
+                val srtFile = videoDir?.listFiles()?.find {
+                    it.extension.lowercase() == "srt" && 
+                    it.nameWithoutExtension.lowercase() == videoName 
+                } ?: File(videoDir, "${videoFile.nameWithoutExtension}.srt") // Fallback to original
+
                 if (srtFile.exists()) {
-                    val clips = parseSrtFile(srtFile, Uri.fromFile(file))
+                    val clips = parseSrtFile(srtFile, Uri.fromFile(videoFile))
                     if (clips.isNotEmpty()) {
                         practiceClips = clips 
-                        selectedVideoUri = Uri.fromFile(file)
+                        selectedVideoUri = Uri.fromFile(videoFile)
                         isQuizModeActive = isQuiz
                         isPlaying = true
                     } else {
@@ -418,6 +427,21 @@ fun VideoPlayerScreen(
         if (videoUri.scheme == "file") File(videoUri.path!!).name else "unknown"
     }
 
+    // Detected language for the video
+    val detectedLanguage = remember(videoUri) {
+        if (videoUri.scheme == "file") {
+            val videoFile = File(videoUri.path!!)
+            val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
+            if (srtFile.exists()) detectSubtitleLanguage(srtFile) else "אנגלית"
+        } else "אנגלית"
+    }
+
+    val preferredAudioLang = when (detectedLanguage) {
+        "עברית" -> "he"
+        "ספרדית" -> "es"
+        else -> "en"
+    }
+
     // Prepare quiz for current clip
     LaunchedEffect(currentClipIndex, clips, isQuizMode) {
         if (isQuizMode && clips != null) {
@@ -472,7 +496,7 @@ fun VideoPlayerScreen(
             prepare()
             playWhenReady = true
             trackSelectionParameters = trackSelectionParameters.buildUpon()
-                .setPreferredAudioLanguage("he")
+                .setPreferredAudioLanguage(preferredAudioLang)
                 .build()
         }
     }
@@ -662,11 +686,11 @@ fun VideoPlayerScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     val text = currentClip.text
-                    val isHebrew = text.any { it in '\u0590'..'\u05FF' }
+                    val isRtl = detectedLanguage == "עברית"
                     
                     Column(modifier = Modifier.padding(20.dp)) {
                         CompositionLocalProvider(
-                            LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
+                            LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
                         ) {
                             if (isQuizMode && hiddenIndices.isNotEmpty()) {
                                 // Display text with blank
@@ -826,36 +850,83 @@ fun VideoPlayerScreen(
 
 @Composable
 fun XRayDialog(line: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var analysisResult by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    // API KEY - TODO: Replace with your actual Gemini API Key
+    val apiKey = "YOUR_GEMINI_API_KEY_HERE"
+
+    LaunchedEffect(line) {
+        if (apiKey == "YOUR_GEMINI_API_KEY_HERE") {
+            error = "נא להזין API KEY בקוד כדי להשתמש ב-AI X-Ray"
+            isLoading = false
+            return@LaunchedEffect
+        }
+        
+        try {
+            val generativeModel = GenerativeModel(
+                modelName = "gemini-1.5-flash",
+                apiKey = apiKey
+            )
+            val prompt = """
+                Analyze this sentence from a movie: "$line"
+                Provide the following in Hebrew (formatted with Markdown):
+                1. Natural Hebrew translation.
+                2. Breakdown of key words: Translation, Part of Speech (noun, verb, etc.), and Synonyms.
+                3. For verbs, provide basic conjugations (Past, Present, Future).
+                4. Examples of where else these words are used.
+                Keep it concise and clear.
+            """.trimIndent()
+            
+            val response = generativeModel.generateContent(prompt)
+            analysisResult = response.text
+            isLoading = false
+        } catch (e: Exception) {
+            error = "שגיאה בחיבור ל-AI: ${e.localizedMessage}"
+            isLoading = false
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Subtitle X-Ray Analysis", style = MaterialTheme.typography.headlineSmall)
+                Text("Subtitle AI X-Ray", style = MaterialTheme.typography.headlineSmall)
             }
         },
         text = {
-            Box(modifier = Modifier.heightIn(max = 400.dp)) {
-                LazyColumn {
-                    item {
-                        XRaySection("1. ORIGINAL LINE", line)
-                        XRaySection("2. NATURAL TRANSLATION", "This is where the human translation goes.")
-                        XRaySection("3. WHAT IT ACTUALLY MEANS", "Deep dive into the hidden meaning and subtext.")
-                        XRaySection("4. SLANG & EXPRESSIONS", "Slang breakdown and cultural idioms.")
-                        XRaySection("5. EMOTIONAL TONE", "The psychological energy of the line.")
-                        XRaySection("6. WHY NATIVES SAY IT THIS WAY", "Casual vs Textbook comparison.")
-                        XRaySection("7. PRONUNCIATION HINTS", "Reductions and connected speech.")
-                        XRaySection("8. CULTURAL CONTEXT", "References and social behavior.")
-                        XRaySection("9. SPEAK LIKE THE CHARACTER", "Casual, Confident, and Dramatic versions.")
-                        XRaySection("10. QUICK TAKEAWAY", "The one thing to remember forever.")
+            Box(modifier = Modifier.heightIn(max = 450.dp).fillMaxWidth()) {
+                if (isLoading) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("מנתח את המשפט בעזרת AI...")
+                    }
+                } else if (error != null) {
+                    Text(error!!, color = Color.Red)
+                } else {
+                    LazyColumn {
+                        item {
+                            Text(
+                                text = analysisResult ?: "לא התקבל ניתוח",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text("Got it!")
+                Text("הבנתי!")
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -1220,14 +1291,22 @@ fun VideoItem(
                         Spacer(modifier = Modifier.width(8.dp))
                         val subLang = remember(srtFile) { detectSubtitleLanguage(srtFile) }
                         Surface(
-                            color = if (subLang == "עברית") Color(0xFFE8F5E9) else Color(0xFFE3F2FD),
+                            color = when (subLang) {
+                                "עברית" -> Color(0xFFE8F5E9)
+                                "ספרדית" -> Color(0xFFFFF3E0)
+                                else -> Color(0xFFE3F2FD)
+                            },
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 text = subLang,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (subLang == "עברית") Color(0xFF2E7D32) else Color(0xFF1976D2)
+                                color = when (subLang) {
+                                    "עברית" -> Color(0xFF2E7D32)
+                                    "ספרדית" -> Color(0xFFE65100)
+                                    else -> Color(0xFF1976D2)
+                                }
                             )
                         }
                     }
@@ -1388,21 +1467,42 @@ fun detectEncoding(bytes: ByteArray): java.nio.charset.Charset {
     if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) return Charsets.UTF_16BE
     if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) return Charsets.UTF_16LE
     
-    // Check for Hebrew (Windows-1255) vs Spanish (ISO-8859-1) vs English (UTF-8)
+    // Heuristics for non-BOM files
     var hebrewChars = 0
-    var specialSpanishChars = 0
+    var spanishChars = 0
+    var utf8Sequences = 0
     
-    for (b in bytes) {
-        val u = b.toInt() and 0xFF
-        // Hebrew range in Windows-1255
-        if (u in 0xE0..0xFA) hebrewChars++
-        // Common Spanish special chars in ISO-8859-1 (ñ, á, é, í, ó, ú, ¿, ¡)
-        if (u == 0xF1 || u == 0xD1 || u == 0xE1 || u == 0xE9 || u == 0xED || u == 0xF3 || u == 0xFA || u == 0xBF || u == 0xA1) specialSpanishChars++
+    var i = 0
+    while (i < bytes.size) {
+        val b = bytes[i].toInt() and 0xFF
+        
+        // Check for Hebrew (Windows-1255)
+        if (b in 0xE0..0xFA) hebrewChars++
+        
+        // Check for Spanish specific chars in ISO-8859-1 (ñ, á, é, í, ó, ú, ü, ¡, ¿)
+        if (b == 0xF1 || b == 0xD1 || b == 0xE1 || b == 0xE9 || b == 0xED || b == 0xF3 || b == 0xFA || b == 0xFC || b == 0xBF || b == 0xA1) {
+            spanishChars++
+        }
+        
+        // Simple UTF-8 multibyte sequence check
+        if (b in 0xC2..0xDF) {
+            if (i + 1 < bytes.size && (bytes[i+1].toInt() and 0xFF) in 0x80..0xBF) {
+                utf8Sequences++
+                i++
+            }
+        } else if (b in 0xE0..0xEF) {
+            if (i + 2 < bytes.size && (bytes[i+1].toInt() and 0xFF) in 0x80..0xBF && (bytes[i+2].toInt() and 0xFF) in 0x80..0xBF) {
+                utf8Sequences++
+                i += 2
+            }
+        }
+        i++
     }
     
     return when {
-        hebrewChars > 10 -> java.nio.charset.Charset.forName("windows-1255")
-        specialSpanishChars > 0 -> Charsets.ISO_8859_1
+        utf8Sequences > 0 -> Charsets.UTF_8
+        hebrewChars > spanishChars && hebrewChars > 5 -> java.nio.charset.Charset.forName("windows-1255")
+        spanishChars > 0 -> Charsets.ISO_8859_1
         else -> Charsets.UTF_8
     }
 }
@@ -1419,16 +1519,19 @@ fun parseSrtTime(timeStr: String): Long {
 
 fun detectSubtitleLanguage(file: File): String {
     return try {
-        val content = file.readText(Charsets.UTF_8)
+        val bytes = file.readBytes()
+        val encoding = detectEncoding(bytes)
+        val content = String(bytes, encoding)
+        
         val hasHebrew = content.any { it in '\u0590'..'\u05FF' }
-        if (hasHebrew) "עברית" else "אנגלית"
+        if (hasHebrew) return "עברית"
+        
+        val spanishChars = setOf('ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¡', '¿', 'Ñ', 'Á', 'É', 'Í', 'Ó', 'Ú', 'Ü')
+        val hasSpanish = content.any { it in spanishChars }
+        if (hasSpanish) return "ספרדית"
+        
+        "אנגלית"
     } catch (e: Exception) {
-        try {
-            val content = file.readText(java.nio.charset.Charset.forName("windows-1255"))
-            val hasHebrew = content.any { it in '\u0590'..'\u05FF' }
-            if (hasHebrew) "עברית" else "אנגלית"
-        } catch (e2: Exception) {
-            "לא ידוע"
-        }
+        "לא ידוע"
     }
 }

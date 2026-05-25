@@ -64,6 +64,11 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
+    // AI & Networking
+    implementation("com.google.generativeai:generativeai:0.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // UI & Animations
     implementation("nl.dionsegijn:konfetti-compose:2.0.4")
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
