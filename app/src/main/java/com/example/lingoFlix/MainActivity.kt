@@ -308,7 +308,8 @@ fun MainContent() {
                         statsManager.markActivityToday()
                         totalXP = statsManager.getXP()
                         currentStreak = statsManager.getStreak()
-                    }
+                    },
+                    userId = currentUser?.id ?: "guest"
                 )
             }
         }
@@ -445,7 +446,8 @@ fun VideoPlayerScreen(
     onToggleFavorite: (String) -> Unit = {},
     isQuizMode: Boolean = false,
     difficulty: String = "קל",
-    onCorrectAnswer: () -> Unit = {}
+    onCorrectAnswer: () -> Unit = {},
+    userId: String = "guest"
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
@@ -637,7 +639,8 @@ fun VideoPlayerScreen(
     if (showXRay) {
         XRayDialog(
             line = xRayLine,
-            onDismiss = { showXRay = false }
+            onDismiss = { showXRay = false },
+            userId = userId
         )
     }
 
@@ -892,18 +895,29 @@ fun VideoPlayerScreen(
 }
 
 @Composable
-fun XRayDialog(line: String, onDismiss: () -> Unit) {
+fun XRayDialog(line: String, onDismiss: () -> Unit, userId: String = "guest") {
     val context = LocalContext.current
     var analysisResult by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isFromCache by remember { mutableStateOf(false) }
 
-    // API KEY - TODO: Replace with your actual Gemini API Key
-    val apiKey = "YOUR_GEMINI_API_KEY_HERE"
+    val apiKey = remember(userId) { SecurityUtils.getUserApiKey(context, userId) ?: "" }
 
     LaunchedEffect(line) {
-        if (apiKey == "YOUR_GEMINI_API_KEY_HERE") {
-            error = "נא להזין API KEY בקוד כדי להשתמש ב-AI X-Ray"
+        // 1. Check Cache (using SharedPreferences for simplicity in this example)
+        val cachePrefs = context.getSharedPreferences("xray_cache_$userId", Context.MODE_PRIVATE)
+        val cached = cachePrefs.getString(line, null)
+        
+        if (cached != null) {
+            analysisResult = cached
+            isFromCache = true
+            isLoading = false
+            return@LaunchedEffect
+        }
+
+        if (apiKey.isBlank()) {
+            error = "נא להזין API KEY בהגדרות כדי להשתמש ב-AI X-Ray"
             isLoading = false
             return@LaunchedEffect
         }
@@ -924,10 +938,17 @@ fun XRayDialog(line: String, onDismiss: () -> Unit) {
             """.trimIndent()
             
             val response = generativeModel.generateContent(prompt)
-            analysisResult = response.text
+            val resultText = response.text
+            analysisResult = resultText
+            
+            // 2. Save to Cache
+            if (resultText != null) {
+                cachePrefs.edit().putString(line, resultText).apply()
+            }
+            
             isLoading = false
         } catch (e: Exception) {
-            error = "שגיאה בחיבור ל-AI: ${e.localizedMessage}"
+            error = "שגיאה בחיבור ל-AI: ${e.localizedMessage}\nוודא שיש אינטרנט והמפתח תקין."
             isLoading = false
         }
     }
@@ -935,10 +956,17 @@ fun XRayDialog(line: String, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Subtitle AI X-Ray", style = MaterialTheme.typography.headlineSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Subtitle AI X-Ray", style = MaterialTheme.typography.headlineSmall)
+                }
+                if (isFromCache) {
+                    Surface(color = Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
+                        Text("Cached", modifier = Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
         },
         text = {
@@ -1002,7 +1030,10 @@ fun VideoListScreen(
     onBack: () -> Unit,
     linkedVideos: Set<String>,
     onToggleLink: (String) -> Unit,
-    onToggleDifficulty: (String) -> Unit
+    onToggleDifficulty: (String) -> Unit,
+    onSettingsRequested: () -> Unit,
+    favoriteClips: Set<String> = emptySet(),
+    onToggleFavorite: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1105,11 +1136,20 @@ fun VideoListScreen(
         }
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Text("הסרטונים שלי", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
                 }
-                Text("הסרטונים שלי", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+                IconButton(onClick = onSettingsRequested) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
