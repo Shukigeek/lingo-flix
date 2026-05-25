@@ -1,6 +1,8 @@
 package com.example.lingoFlix
 
 import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
@@ -60,7 +62,6 @@ import androidx.media3.ui.PlayerView
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.theme.LingoFlixTheme
 import com.example.lingoFlix.data.UserStatsManager
-import android.content.Intent
 import android.os.Parcelable
 import kotlinx.coroutines.launch
 import java.io.File
@@ -76,6 +77,7 @@ import com.example.lingoFlix.model.UserProfile
 import com.example.lingoFlix.ui.ProfileSelectionScreen
 import com.example.lingoFlix.ui.SettingsScreen
 import com.example.lingoFlix.utils.SecurityUtils
+import com.google.ai.client.generativeai.GenerativeModel
 
 data class SubtitleClip(
     val text: String,

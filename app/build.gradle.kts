@@ -65,7 +65,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.3.1")
 
     // AI & Networking
-    implementation("com.google.generativeai:generativeai:0.9.0")
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
