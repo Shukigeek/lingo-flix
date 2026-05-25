@@ -62,7 +62,6 @@ import com.example.lingoFlix.ui.theme.LingoFlixTheme
 import com.example.lingoFlix.data.UserStatsManager
 import android.content.Intent
 import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -74,13 +73,12 @@ import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
 
-@Parcelize
 data class SubtitleClip(
     val text: String,
     val startTimeMs: Long,
     val endTimeMs: Long,
     val videoUri: Uri
-) : Parcelable
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
