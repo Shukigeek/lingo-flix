@@ -20,7 +20,6 @@ import com.example.lingoFlix.ui.theme.LingoFlixTheme
 import com.example.lingoFlix.data.UserStatsManager
 import com.example.lingoFlix.model.UserProfile
 import com.example.lingoFlix.model.SubtitleClip
-import com.example.lingoFlix.ui.ProfileSelectionScreen
 import com.example.lingoFlix.ui.SettingsScreen
 import com.example.lingoFlix.ui.VideoListScreen
 import com.example.lingoFlix.ui.VideoPlayerScreen
@@ -53,12 +52,8 @@ fun MainContent() {
     val statsManager = remember { UserStatsManager(context) }
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", android.content.Context.MODE_PRIVATE) }
     
-    var currentScreen by rememberSaveable { mutableStateOf("profile_selection") }
-    var currentUser by remember { mutableStateOf<UserProfile?>(null) }
-    var profiles by remember { mutableStateOf(listOf(
-        UserProfile("1", "אורח 1", 0),
-        UserProfile("2", "אורח 2", 0)
-    )) }
+    var currentScreen by rememberSaveable { mutableStateOf("dashboard") }
+    var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
     
     var linkedToRandomPool by rememberSaveable { 
         mutableStateOf(sharedPrefs.getStringSet("linked_videos", emptySet()) ?: emptySet()) 
@@ -94,7 +89,7 @@ fun MainContent() {
         }
     }
 
-    BackHandler(enabled = currentScreen != "profile_selection" && currentScreen != "dashboard") {
+    BackHandler(enabled = currentScreen != "dashboard") {
         when (currentScreen) {
             "player" -> {
                 currentScreen = "video_list"
@@ -111,23 +106,6 @@ fun MainContent() {
     var showDifficultyDialogForFavorites by remember { mutableStateOf(false) }
 
     when (currentScreen) {
-        "profile_selection" -> {
-            ProfileSelectionScreen(
-                profiles = profiles,
-                onProfileSelected = { profile ->
-                    currentUser = profile
-                    currentScreen = "dashboard"
-                    totalXP = profile.totalXP
-                    currentStreak = profile.currentStreak
-                },
-                onAddProfile = { name, avatarIdx, avatarUri ->
-                    val newId = (profiles.size + 1).toString()
-                    val newProfile = UserProfile(newId, name, avatarIdx, avatarUri)
-                    profiles = profiles + newProfile
-                }
-            )
-        }
-
         "settings" -> {
             SettingsScreen(
                 currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
