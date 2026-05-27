@@ -88,7 +88,7 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                                 .padding(16.dp)
                         ) {
                             Text(
@@ -108,13 +108,13 @@ fun DashboardScreen(
                                 Text(
                                     text = "רמה ${totalXP / 1000 + 1}",
                                     fontSize = 12.sp,
-                                    color = Color.Gray,
+                                    color = Color.DarkGray,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "$xpInCurrentLevel / 1000 XP",
                                     fontSize = 12.sp,
-                                    color = Color.Gray,
+                                    color = Color.DarkGray,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -128,7 +128,7 @@ fun DashboardScreen(
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
                                 color = Color(0xFF58CC02),
-                                trackColor = Color(0xFFE5E5E5),
+                                trackColor = Color.White.copy(alpha = 0.5f),
                             )
                         }
                     }
@@ -137,7 +137,7 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                                 .padding(16.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,7 +152,7 @@ fun DashboardScreen(
                                     text = "הסרטונים האחרונים",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF4B4B4B)
+                                    color = Color(0xFF2D2D2D)
                                 )
                             }
                             
@@ -163,18 +163,18 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(100.dp)
-                                        .background(Color(0xFFF7F7F7), RoundedCornerShape(12.dp)),
+                                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(
                                             imageVector = Icons.Default.VideoLibrary,
                                             contentDescription = null,
-                                            tint = Color(0xFFE5E5E5),
+                                            tint = Color.DarkGray.copy(alpha = 0.5f),
                                             modifier = Modifier.size(32.dp)
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text("אין סרטונים עדיין", color = Color.Gray)
+                                        Text("אין סרטונים עדיין", color = Color.DarkGray)
                                     }
                                 }
                             } else {
@@ -214,7 +214,7 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                                 .padding(16.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -229,7 +229,7 @@ fun DashboardScreen(
                                     text = "הסטטיסטיקה השבועית",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF4B4B4B)
+                                    color = Color(0xFF2D2D2D)
                                 )
                             }
                             
@@ -272,8 +272,8 @@ fun VideoCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF7F7F7),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E5E5)),
+        color = Color.White.copy(alpha = 0.3f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
     ) {
         Row(
             modifier = Modifier.padding(8.dp),
@@ -299,7 +299,7 @@ fun VideoCard(
                 text = file.name,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                color = Color(0xFF4B4B4B),
+                color = Color(0xFF2D2D2D),
                 maxLines = 1,
                 modifier = Modifier.weight(1f)
             )
@@ -320,8 +320,8 @@ fun StatBox(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF7F7F7),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E5E5))
+        color = Color.White.copy(alpha = 0.3f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -340,12 +340,12 @@ fun StatBox(
                     text = value,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF4B4B4B)
+                    color = Color(0xFF2D2D2D)
                 )
                 Text(
                     text = label,
                     fontSize = 10.sp,
-                    color = Color.Gray,
+                    color = Color.DarkGray,
                     fontWeight = FontWeight.Bold
                 )
             }

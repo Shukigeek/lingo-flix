@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -449,7 +450,7 @@ fun VideoPlayerScreen(
 
             if (clips == null && allClipsForThisVideo.isEmpty()) {
                 LaunchedEffect(Unit) {
-                    showInfoMessage = "אין כתוביות לסרטון הזה"
+                    Toast.makeText(context, "אין כתוביות לסרטון הזה", Toast.LENGTH_SHORT).show()
                     delay(5000)
                     showInfoMessage = null
                 }

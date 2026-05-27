@@ -1,6 +1,9 @@
 package com.example.lingoFlix
 
 import android.net.Uri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -20,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -43,11 +47,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Hide navigation bars, show status bar
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        windowInsetsController.show(WindowInsetsCompat.Type.statusBars())
+
         setContent {
             LingoFlixTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize().safeDrawingPadding(),
-                    color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Transparent
                 ) {
                     MainContent()
                 }
@@ -130,8 +141,9 @@ fun MainContent() {
         Image(
             painter = painterResource(id = R.drawable.friends),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize().alpha(0.25f), // Slightly more opaque for better visibility
-            contentScale = ContentScale.Crop
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.5f // Control transparency of the image itself here
         )
 
         when (currentScreen) {
