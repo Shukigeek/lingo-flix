@@ -236,7 +236,6 @@ fun VideoPlayerScreen(
 
     val exoPlayer = remember(context) {
         ExoPlayer.Builder(context).build().apply {
-            prepare()
             playWhenReady = true
         }
     }
@@ -249,7 +248,12 @@ fun VideoPlayerScreen(
             videoUri
         }
 
-        if (exoPlayer.currentMediaItem?.localConfiguration?.uri != targetUri) {
+        val currentMediaUri = exoPlayer.currentMediaItem?.localConfiguration?.uri
+        
+        if (currentMediaUri != targetUri) {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            
             val mediaItemBuilder = MediaItem.Builder().setUri(targetUri)
             
             // Add subtitles if in regular mode and available
@@ -270,16 +274,19 @@ fun VideoPlayerScreen(
 
             exoPlayer.setMediaItem(mediaItemBuilder.build())
             exoPlayer.prepare()
+            
+            // Ensure audio language is set
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
                 .setPreferredAudioLanguage(preferredAudioLang)
                 .build()
             
-            if (clips != null) {
+            if (clips != null && currentClipIndex < clips.size) {
                 exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
             }
-        } else if (clips != null) {
+        } else if (clips != null && currentClipIndex < clips.size) {
             exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
         }
+
         exoPlayer.play()
     }
 

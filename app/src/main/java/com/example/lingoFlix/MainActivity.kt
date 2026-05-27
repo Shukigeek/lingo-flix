@@ -27,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.DifficultyScreen
 import com.example.lingoFlix.ui.theme.LingoFlixTheme
@@ -46,13 +48,9 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         
         // Hide navigation bars, show status bar
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
-        windowInsetsController.show(WindowInsetsCompat.Type.statusBars())
+        setImmersiveMode(window)
 
         setContent {
             LingoFlixTheme {
@@ -60,26 +58,49 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Transparent
                 ) {
-                    MainContent()
+                    MainContent(this)
                 }
             }
         }
     }
 }
 
-@Composable
-fun MainContent() {
-    val context = LocalContext.current
+    private fun setImmersiveMode(window: android.view.Window) {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        // Set behavior to transient so they hide automatically
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        windowInsetsController.show(WindowInsetsCompat.Type.statusBars())
+    }
+
+    @Composable
+    fun MainContent(activity: ComponentActivity) {
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+
+        // Maintain immersive mode on resume
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    setImmersiveMode(activity.window)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
     val statsManager = remember { UserStatsManager(context) }
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", android.content.Context.MODE_PRIVATE) }
     
     var currentScreen by rememberSaveable { mutableStateOf("dashboard") }
     var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
     
-    var linkedToRandomPool by rememberSaveable { 
+    var linkedToRandomPool by remember { 
         mutableStateOf(sharedPrefs.getStringSet("linked_videos", emptySet()) ?: emptySet()) 
     }
-    var favoriteClips by rememberSaveable { 
+    var favoriteClips by remember { 
         mutableStateOf(sharedPrefs.getStringSet("favorite_clips", emptySet()) ?: emptySet()) 
     }
     
@@ -94,10 +115,10 @@ fun MainContent() {
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
 
     LaunchedEffect(linkedToRandomPool) {
-        sharedPrefs.edit().putStringSet("linked_videos", linkedToRandomPool).apply()
+        sharedPrefs.edit().putStringSet("linked_videos", linkedToRandomPool.toSet()).apply()
     }
     LaunchedEffect(favoriteClips) {
-        sharedPrefs.edit().putStringSet("favorite_clips", favoriteClips).apply()
+        sharedPrefs.edit().putStringSet("favorite_clips", favoriteClips.toSet()).apply()
     }
 
     val pickVideoLauncher = rememberLauncherForActivityResult(
@@ -143,7 +164,7 @@ fun MainContent() {
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.5f // Control transparency of the image itself here
+            alpha = 0.5f
         )
 
         when (currentScreen) {
@@ -240,10 +261,10 @@ fun MainContent() {
                                     val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
                                     val videoFile = videoExtensions.map { ext -> 
                                         File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
-                                    }.firstOrNull { it.exists() } ?: File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    }.firstOrNull { it.exists() }
                                     
-                                    if (linkedToRandomPool.contains(videoFile.name) || 
-                                        linkedToRandomPool.contains(file.nameWithoutExtension)) {
+                                    if (videoFile != null && (linkedToRandomPool.contains(videoFile.name) || 
+                                        linkedToRandomPool.contains(file.nameWithoutExtension))) {
                                         val videoUri = Uri.fromFile(videoFile)
                                         allClips.addAll(SrtParser.parseSrtFile(file, videoUri))
                                     }
@@ -279,14 +300,16 @@ fun MainContent() {
                                     val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
                                     val videoFile = videoExtensions.map { ext -> 
                                         File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
-                                    }.firstOrNull { it.exists() } ?: File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    }.firstOrNull { it.exists() }
                                     
-                                    val clips = SrtParser.parseSrtFile(file, Uri.fromFile(videoFile))
-                                    clips.forEach { clip ->
-                                        // Standardize clipId format
-                                        val clipId = "${videoFile.name}|${clip.startTimeMs}"
-                                        if (favoriteClips.contains(clipId)) {
-                                            favClipsList.add(clip)
+                                    if (videoFile != null) {
+                                        val clips = SrtParser.parseSrtFile(file, Uri.fromFile(videoFile))
+                                        clips.forEach { clip ->
+                                            // Standardize clipId format
+                                            val clipId = "${videoFile.name}|${clip.startTimeMs}"
+                                            if (favoriteClips.contains(clipId)) {
+                                                favClipsList.add(clip)
+                                            }
                                         }
                                     }
                                 }

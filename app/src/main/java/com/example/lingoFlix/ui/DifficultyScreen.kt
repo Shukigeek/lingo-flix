@@ -88,8 +88,8 @@ fun DifficultyScreen(
         DuoButton(
             text = "צפייה רגילה (ללא Quiz)",
             onClick = onRegularView,
-            color = Color(0xFF1CB0F6),
-            darkColor = Color(0xFF1CB0F6).copy(alpha = 0.8f),
+            color = Color(0xFFFF8A00), // Vibrant Orange
+            darkColor = Color(0xFFE67C00),
             modifier = Modifier.fillMaxWidth()
         )
 

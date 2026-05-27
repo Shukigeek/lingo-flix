@@ -193,8 +193,8 @@ fun DashboardScreen(
                             DuoButton(
                                 text = "למאגר הסרטונים שלי",
                                 onClick = onMyVideos,
-                                color = Color(0xFF1CB0F6),
-                                darkColor = Color(0xFF1899D6),
+                                color = Color(0xFFFF8A00), // Vibrant Orange
+                                darkColor = Color(0xFFE67C00),
                                 modifier = Modifier.fillMaxWidth()
                             )
                             
