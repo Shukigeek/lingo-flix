@@ -160,17 +160,6 @@ fun VideoListScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            repeat(10) {
-                Row(modifier = Modifier.alpha(0.04f)) {
-                    repeat(5) {
-                        Icon(Icons.Default.Gesture, null, modifier = Modifier.size(100.dp).padding(10.dp), tint = MaterialTheme.colorScheme.primary)
-                        Icon(Icons.Default.AutoFixNormal, null, modifier = Modifier.size(80.dp).padding(10.dp), tint = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-            }
-        }
-
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -697,6 +686,16 @@ fun VideoItem(
                     }
                 }
                 
+                // Settings icon for menu
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Menu",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
                 // Dropdown for long press / secondary actions
                 Box {
                     DropdownMenu(
@@ -765,14 +764,6 @@ fun VideoItem(
                             )
                             HorizontalDivider()
                         }
-                        DropdownMenuItem(
-                            text = { Text("מחק", color = Color.Red) },
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
-                            onClick = {
-                                showMenu = false
-                                onDelete()
-                            }
-                        )
                     }
                 }
             }

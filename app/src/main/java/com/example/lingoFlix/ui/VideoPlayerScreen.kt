@@ -1,5 +1,9 @@
 package com.example.lingoFlix.ui
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -153,10 +157,24 @@ fun VideoPlayerScreen(
     var showXRay by remember { mutableStateOf(false) }
     var xRayLine by remember { mutableStateOf("") }
     
+    // Voice Input State
+    val voiceLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { activityResult ->
+        activityResult.data?.let { data ->
+            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!results.isNullOrEmpty()) {
+                userInput = results[0]
+            }
+        }
+    }
+    
     // Subtitle Generation State
     var isGeneratingSubtitles by remember { mutableStateOf(false) }
     var generationProgress by remember { mutableStateOf("") }
     var subtitlesGeneratedTrigger by remember { mutableIntStateOf(0) }
+    
+    var showNoSubtitlesMessage by remember { mutableStateOf(false) }
     
     // Detected language for the video
     val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger) {
@@ -257,10 +275,13 @@ fun VideoPlayerScreen(
         clips?.let {
             val clip = it[currentClipIndex]
             
-            if (exoPlayer.currentMediaItem?.localConfiguration?.uri != clip.videoUri) {
+            val currentUri = exoPlayer.currentMediaItem?.localConfiguration?.uri
+            if (currentUri != clip.videoUri) {
                 val mediaItemBuilder = MediaItem.Builder().setUri(clip.videoUri)
                 exoPlayer.setMediaItem(mediaItemBuilder.build())
                 exoPlayer.prepare()
+                // Wait a bit for preparation if URI changed
+                delay(200)
             }
 
             exoPlayer.seekTo(clip.startTimeMs)
@@ -432,17 +453,48 @@ fun VideoPlayerScreen(
             }
 
             if (clips == null && allClipsForThisVideo.isEmpty()) {
+                LaunchedEffect(Unit) {
+                    showNoSubtitlesMessage = true
+                    delay(5000)
+                    showNoSubtitlesMessage = false
+                }
+            }
+
+            if (showNoSubtitlesMessage) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("אין כתוביות לסרטון הזה", color = Color.White)
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "אין כתוביות לסרטון הזה",
+                            color = Color.White,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
 
             if (clips != null && subtitlesVisible) {
+                // Progress Bar for Quiz
+                LinearProgressIndicator(
+                    progress = { (currentClipIndex + 1).toFloat() / clips.size },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.White.copy(alpha = 0.3f)
+                )
+                Text(
+                    text = "משפט ${currentClipIndex + 1} מתוך ${clips.size}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+
                 Spacer(modifier = Modifier.weight(1f))
                 
                 val currentClip = clips[currentClipIndex]
@@ -551,18 +603,45 @@ fun VideoPlayerScreen(
 
                 if (isQuizMode && !isChecked) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    TextField(
-                        value = userInput,
-                        onValueChange = { userInput = it },
-                        placeholder = { Text("הקלד את המילים החסרות...") },
+                    Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(onClick = { isChecked = true }) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = userInput,
+                            onValueChange = { userInput = it },
+                            placeholder = { Text("הקלד את המילים החסרות...") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(onClick = { isChecked = true }) {
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
+                                }
                             }
+                        )
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
+                                    // Try to prefer offline recognition if available
+                                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                                }
+                                try {
+                                    voiceLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
                         }
-                    )
+                    }
                 } else if (isQuizMode && isChecked) {
                     val hiddenWords = wordsList.filterIndexed { index, _ -> hiddenIndices.contains(index) }.joinToString(" ")
                     val allCorrect = hiddenIndices.all { idx ->

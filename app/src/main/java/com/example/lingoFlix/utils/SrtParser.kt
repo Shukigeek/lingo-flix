@@ -58,8 +58,11 @@ object SrtParser {
         var i = 0
         while (i < bytes.size) {
             val b = bytes[i].toInt() and 0xFF
+            // Hebrew range in Windows-1255
             if (b in 0xE0..0xFA) hebrewChars++
-            if (b == 0xF1 || b == 0xD1 || b == 0xE1 || b == 0xE9 || b == 0xED || b == 0xF3 || b == 0xFA || b == 0xFC || b == 0xBF || b == 0xA1) {
+            // Common Spanish characters in ISO-8859-1 / Windows-1252
+            if (b == 0xF1 || b == 0xD1 || b == 0xE1 || b == 0xE9 || b == 0xED || b == 0xF3 || b == 0xFA || b == 0xFC || b == 0xBF || b == 0xA1 || 
+                b == 0xC1 || b == 0xC9 || b == 0xCD || b == 0xD3 || b == 0xDA || b == 0xDC) {
                 spanishChars++
             }
             if (b in 0xC2..0xDF) {
@@ -79,7 +82,7 @@ object SrtParser {
         return when {
             utf8Sequences > 0 -> Charsets.UTF_8
             hebrewChars > spanishChars && hebrewChars > 5 -> java.nio.charset.Charset.forName("windows-1255")
-            spanishChars > 0 -> Charsets.ISO_8859_1
+            spanishChars > 0 -> java.nio.charset.Charset.forName("windows-1252") // Spanish/Western
             else -> Charsets.UTF_8
         }
     }

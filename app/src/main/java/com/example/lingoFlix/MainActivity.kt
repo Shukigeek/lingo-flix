@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.AutoFixNormal
@@ -19,7 +20,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.DifficultyScreen
@@ -122,17 +125,13 @@ fun MainContent() {
     var showDifficultyDialogForFavorites by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // App Background Icons
-        Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            repeat(10) {
-                Row(modifier = Modifier.alpha(0.04f)) {
-                    repeat(5) {
-                        Icon(androidx.compose.material.icons.Icons.Default.Gesture, null, modifier = Modifier.size(100.dp).padding(10.dp), tint = MaterialTheme.colorScheme.primary)
-                        Icon(androidx.compose.material.icons.Icons.Default.AutoFixNormal, null, modifier = Modifier.size(80.dp).padding(10.dp), tint = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-            }
-        }
+        // App Background Image (Friends)
+        Image(
+            painter = painterResource(id = R.drawable.friends),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize().alpha(0.15f), // Semi-transparent to not distract
+            contentScale = ContentScale.Crop
+        )
 
         when (currentScreen) {
             "difficulty" -> {
@@ -220,11 +219,17 @@ fun MainContent() {
                             
                             val videoDir = File(context.filesDir, "videos")
                             val allClips = mutableListOf<SubtitleClip>()
-                            linkedToRandomPool.forEach { fileName ->
-                                val videoFile = File(videoDir, fileName)
-                                val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-                                if (srtFile.exists()) {
-                                    allClips.addAll(SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile)))
+                            
+                            // Recursively find all SRT files in the video directory
+                            videoDir.walkTopDown().forEach { file ->
+                                if (!file.isDirectory && file.extension.lowercase() == "srt") {
+                                    val possibleVideoFile = File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    
+                                    if (linkedToRandomPool.contains(possibleVideoFile.name) || 
+                                        linkedToRandomPool.contains(file.nameWithoutExtension)) {
+                                        val videoUri = Uri.fromFile(possibleVideoFile)
+                                        allClips.addAll(SrtParser.parseSrtFile(file, videoUri))
+                                    }
                                 }
                             }
 
@@ -249,11 +254,12 @@ fun MainContent() {
                             
                             val videoDir = File(context.filesDir, "videos")
                             val favClipsList = mutableListOf<SubtitleClip>()
-                            val videoFiles = videoDir.listFiles()?.filter { it.extension != "srt" } ?: emptyList()
-                            videoFiles.forEach { videoFile ->
-                                val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-                                if (srtFile.exists()) {
-                                    val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
+                            
+                            // Walk through all directories and find all SRT files
+                            videoDir.walkTopDown().forEach { file ->
+                                if (!file.isDirectory && file.extension.lowercase() == "srt") {
+                                    val videoFile = File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    val clips = SrtParser.parseSrtFile(file, Uri.fromFile(videoFile))
                                     clips.forEach { clip ->
                                         val clipId = "${videoFile.name}|${clip.startTimeMs}"
                                         if (favoriteClips.contains(clipId)) {

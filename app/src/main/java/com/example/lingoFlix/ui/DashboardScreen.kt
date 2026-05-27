@@ -72,7 +72,6 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -234,21 +233,6 @@ fun VideoCard(
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Surface(
-                    color = DuoGreen.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = "בינוני",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = DuoDarkGreen,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
             
             Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = DuoGray)
