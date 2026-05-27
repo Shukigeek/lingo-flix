@@ -6,8 +6,12 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,9 +24,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SrtParser
 import com.example.lingoFlix.utils.SubtitleGenerator
@@ -526,6 +533,7 @@ fun VideoListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoItem(
     file: File,
@@ -547,162 +555,225 @@ fun VideoItem(
     val hasSubtitles = srtFile?.exists() ?: false
     var showMenu by remember { mutableStateOf(false) }
 
-    Card(
+    // Improvement 7: Swipe state
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val animatedOffset by animateDpAsState(targetValue = offsetX.dp, label = "swipe")
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .clickable { 
-                onVideoSelected(Uri.fromFile(file))
-            },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
     ) {
+        // Layer 1: Swipe Actions (Behind)
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .matchParentSize()
+                .padding(horizontal = 2.dp),
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                if (isDirectory) Icons.Default.FolderSpecial else Icons.Default.PlayCircle, 
-                null, 
-                tint = if (isDirectory) Color(0xFFFFD600) else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        file.name, 
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (isLinked && !isDirectory) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.Link,
-                            contentDescription = "Linked",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isDirectory) "תיקייה" else (duration ?: "אורך לא ידוע"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                    if (hasSubtitles && srtFile != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val subLang = remember(srtFile) { SrtParser.detectSubtitleLanguage(srtFile) }
-                        Surface(
-                            color = when (subLang) {
-                                "עברית" -> Color(0xFFE8F5E9)
-                                "ספרדית" -> Color(0xFFFFF3E0)
-                                "רוסית" -> Color(0xFFF3E5F5)
-                                "ערבית" -> Color(0xFFFFFDE7)
-                                else -> Color(0xFFE3F2FD)
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "${SrtParser.getLanguageFlag(subLang)} $subLang",
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = when (subLang) {
-                                    "עברית" -> Color(0xFF2E7D32)
-                                    "ספרדית" -> Color(0xFFE65100)
-                                    "רוסית" -> Color(0xFF7B1FA2)
-                                    "ערבית" -> Color(0xFFFBC02D)
-                                    else -> Color(0xFF1976D2)
-                                }
-                            )
-                        }
+            if (hasSubtitles && !isDirectory) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(80.dp)
+                        .background(Color(0xFF58CC02)) // DuoGreen
+                        .clickable { 
+                            offsetX = 0f
+                            onPractice() 
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.School, contentDescription = null, tint = Color.White)
+                        Text("תרגל", color = Color.White, fontSize = 12.sp)
                     }
                 }
             }
-            
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        if (isDirectory) Icons.Default.MoreVert else Icons.Default.Settings, 
-                        contentDescription = "Actions"
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(80.dp)
+                    .background(Color.Red)
+                    .clickable { 
+                        offsetX = 0f
+                        onDelete() 
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                    Text("מחק", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Layer 2: Main Content (Front)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(x = animatedOffset)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            offsetX = if (offsetX < -60f) -160f else 0f
+                        },
+                        onHorizontalDrag = { _, delta ->
+                            offsetX = (offsetX + delta).coerceIn(-160f, 0f)
+                        }
                     )
                 }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    if (hasSubtitles && !isDirectory) {
-                        DropdownMenuItem(
-                            text = { Text("למד ממשפטים (לפי סדר)", color = MaterialTheme.colorScheme.primary) },
-                            leadingIcon = { Icon(Icons.Default.School, null, tint = MaterialTheme.colorScheme.primary) },
-                            onClick = {
-                                showMenu = false
-                                onPractice()
-                            }
+                .combinedClickable(
+                    onClick = { onVideoSelected(Uri.fromFile(file)) },
+                    onLongClick = { showMenu = true }
+                ),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (isDirectory) Icons.Default.FolderSpecial else Icons.Default.PlayCircle, 
+                    null, 
+                    tint = if (isDirectory) Color(0xFFFFD600) else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            file.name, 
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
-                        DropdownMenuItem(
-                            text = { Text(if (isLinked) "הסר מהמאגר הרנדומלי" else "הוסף למאגר הרנדומלי") },
-                            leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) },
-                            onClick = {
-                                showMenu = false
-                                onToggleLink()
-                            }
-                        )
-                        HorizontalDivider()
+                        if (isLinked && !isDirectory) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = "Linked",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                    DropdownMenuItem(
-                        text = { Text("ערוך שם") },
-                        leadingIcon = { Icon(Icons.Default.Edit, null) },
-                        onClick = {
-                            showMenu = false
-                            onRename()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isDirectory) "תיקייה" else (duration ?: "אורך לא ידוע"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                        if (hasSubtitles && srtFile != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val subLang = remember(srtFile) { SrtParser.detectSubtitleLanguage(srtFile) }
+                            Surface(
+                                color = when (subLang) {
+                                    "עברית" -> Color(0xFFE8F5E9)
+                                    "ספרדית" -> Color(0xFFFFF3E0)
+                                    "רוסית" -> Color(0xFFF3E5F5)
+                                    "ערבית" -> Color(0xFFFFFDE7)
+                                    else -> Color(0xFFE3F2FD)
+                                },
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = "${SrtParser.getLanguageFlag(subLang)} $subLang",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = when (subLang) {
+                                        "עברית" -> Color(0xFF2E7D32)
+                                        "ספרדית" -> Color(0xFFE65100)
+                                        "רוסית" -> Color(0xFF7B1FA2)
+                                        "ערבית" -> Color(0xFFFBC02D)
+                                        else -> Color(0xFF1976D2)
+                                    }
+                                )
+                            }
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("העבר לתיקייה") },
-                        leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
-                        onClick = {
-                            showMenu = false
-                            onMove()
-                        }
-                    )
-                    if (!isDirectory) {
-                        DropdownMenuItem(
-                            text = { Text("ייצור כתוביות AI (אוטומטי)", color = MaterialTheme.colorScheme.primary) },
-                            leadingIcon = { Icon(Icons.Default.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary) },
-                            onClick = {
-                                showMenu = false
-                                onGenerateSubtitles()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("חפש כתוביות") },
-                            leadingIcon = { Icon(Icons.Default.Subtitles, null) },
-                            onClick = {
-                                showMenu = false
-                                onSearchSubtitles()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("ייבא כתוביות") },
-                            leadingIcon = { Icon(Icons.Default.FileOpen, null) },
-                            onClick = {
-                                showMenu = false
-                                onImportSubtitles()
-                            }
-                        )
-                        HorizontalDivider()
                     }
-                    DropdownMenuItem(
-                        text = { Text("מחק", color = Color.Red) },
-                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
+                }
+                
+                // Dropdown for long press / secondary actions
+                Box {
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (hasSubtitles && !isDirectory) {
+                            DropdownMenuItem(
+                                text = { Text("למד ממשפטים (לפי סדר)", color = MaterialTheme.colorScheme.primary) },
+                                leadingIcon = { Icon(Icons.Default.School, null, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = {
+                                    showMenu = false
+                                    onPractice()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (isLinked) "הסר מהמאגר הרנדומלי" else "הוסף למאגר הרנדומלי") },
+                                leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onToggleLink()
+                                }
+                            )
+                            HorizontalDivider()
                         }
-                    )
+                        DropdownMenuItem(
+                            text = { Text("ערוך שם") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            onClick = {
+                                showMenu = false
+                                onRename()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("העבר לתיקייה") },
+                            leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
+                            onClick = {
+                                showMenu = false
+                                onMove()
+                            }
+                        )
+                        if (!isDirectory) {
+                            DropdownMenuItem(
+                                text = { Text("ייצור כתוביות AI (אוטומטי)", color = MaterialTheme.colorScheme.primary) },
+                                leadingIcon = { Icon(Icons.Default.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = {
+                                    showMenu = false
+                                    onGenerateSubtitles()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("חפש כתוביות") },
+                                leadingIcon = { Icon(Icons.Default.Subtitles, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onSearchSubtitles()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("ייבא כתוביות") },
+                                leadingIcon = { Icon(Icons.Default.FileOpen, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onImportSubtitles()
+                                }
+                            )
+                            HorizontalDivider()
+                        }
+                        DropdownMenuItem(
+                            text = { Text("מחק", color = Color.Red) },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
             }
         }

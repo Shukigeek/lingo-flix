@@ -83,10 +83,10 @@ fun MainContent() {
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val fileName = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
-            val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, fileName)
+            val originalName = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
+            val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, originalName)
             if (savedFile != null) {
-                Toast.makeText(context, "סרטון $fileName נשמר!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "סרטון $originalName נשמר!", Toast.LENGTH_SHORT).show()
             }
         }
     }

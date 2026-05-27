@@ -5,7 +5,7 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.compose.animation.animateColor
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,14 +18,18 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -39,7 +43,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.lingoFlix.model.SubtitleClip
-import com.example.lingoFlix.ui.components.XRayDialog
+import com.example.lingoFlix.ui.components.*
 import com.example.lingoFlix.utils.SrtParser
 import com.example.lingoFlix.utils.SubtitleGenerator
 import kotlinx.coroutines.delay
@@ -121,6 +125,13 @@ fun VideoPlayerScreen(
     // Quiz State
     var userInput by remember { mutableStateOf("") }
     var isChecked by remember { mutableStateOf(false) }
+    var subtitlesVisible by rememberSaveable { mutableStateOf(true) }
+    
+    // Improvement 6: Session states
+    var isSessionComplete by remember { mutableStateOf(false) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    var totalAttempted by remember { mutableIntStateOf(0) }
+
     var hiddenIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
     var wordsList by remember(currentClipIndex) { mutableStateOf(listOf<String>()) }
     
@@ -384,6 +395,20 @@ fun VideoPlayerScreen(
                         tint = Color.White
                     )
                 }
+
+                IconButton(
+                    onClick = { subtitlesVisible = subtitlesVisible.not() },
+                    modifier = Modifier.background(
+                        if (subtitlesVisible) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (subtitlesVisible) Icons.Default.Subtitles else Icons.Default.SubtitlesOff,
+                        contentDescription = "Toggle Subtitles",
+                        tint = Color.White
+                    )
+                }
             }
 
             if (clips == null && allClipsForThisVideo.isEmpty()) {
@@ -425,7 +450,7 @@ fun VideoPlayerScreen(
                 }
             }
 
-            if (clips != null) {
+            if (clips != null && subtitlesVisible) {
                 // Progress Bar for Quiz
                 LinearProgressIndicator(
                     progress = { (currentClipIndex + 1).toFloat() / clips.size },
@@ -568,6 +593,7 @@ fun VideoPlayerScreen(
                     
                     LaunchedEffect(isChecked) {
                         if (allCorrect) {
+                            correctCount++
                             onCorrectAnswer()
                             confettiState = listOf(
                                 Party(
@@ -607,10 +633,11 @@ fun VideoPlayerScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Button(onClick = {
                         if (clips.isNotEmpty()) {
+                            totalAttempted++
                             if (currentClipIndex < clips.size - 1) {
                                 currentClipIndex++
                             } else {
-                                currentClipIndex = 0
+                                isSessionComplete = true
                             }
                             userInput = ""
                             isChecked = false
@@ -619,6 +646,102 @@ fun VideoPlayerScreen(
                         Text("המשפט הבא")
                         Icon(Icons.Default.SkipNext, null)
                     }
+                }
+            }
+        }
+
+        // Improvement 6: Completion Screen Overlay
+        AnimatedVisibility(
+            visible = isSessionComplete,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.92f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "🎬 סיימת את האימון!",
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "ענית נכון על $correctCount מתוך $totalAttempted משפטים",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    val sessionXP = correctCount * when(difficulty) {
+                        "בינוני" -> 30
+                        "קשה" -> 40
+                        else -> 20
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "+$sessionXP XP נצברו!",
+                        color = Color(0xFFFFC107),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Spacer(modifier = Modifier.height(40.dp))
+                    
+                    DuoButton(
+                        text = "שחק שוב",
+                        onClick = {
+                            isSessionComplete = false
+                            correctCount = 0
+                            totalAttempted = 0
+                            currentClipIndex = 0
+                            userInput = ""
+                            isChecked = false
+                        },
+                        color = DuoGreen,
+                        darkColor = DuoDarkGreen,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    DuoButton(
+                        text = "חזור לבית",
+                        onClick = onBack,
+                        color = DuoBlue,
+                        darkColor = DuoBlue.copy(alpha = 0.8f),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            
+            LaunchedEffect(isSessionComplete) {
+                if (isSessionComplete) {
+                    confettiState = listOf(
+                        Party(
+                            speed = 0f,
+                            maxSpeed = 30f,
+                            damping = 0.9f,
+                            angle = 270,
+                            spread = 360,
+                            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xbdb2ff, 0x9bf6ff),
+                            position = Position.Relative(0.5, 0.3),
+                            emitter = Emitter(duration = 200).max(200)
+                        )
+                    )
                 }
             }
         }
