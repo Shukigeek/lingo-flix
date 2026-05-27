@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SrtParser
+import com.example.lingoFlix.utils.SubtitleGenerator
+import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
@@ -37,7 +39,8 @@ fun VideoListScreen(
     onToggleDifficulty: (String) -> Unit,
     onSettingsRequested: () -> Unit,
     favoriteClips: Set<String> = emptySet(),
-    onToggleFavorite: (String) -> Unit = {}
+    onToggleFavorite: (String) -> Unit = {},
+    userId: String = "guest"
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -54,6 +57,7 @@ fun VideoListScreen(
 
     var videoToRename by remember { mutableStateOf<File?>(null) }
     var videoToDelete by remember { mutableStateOf<File?>(null) }
+    var folderToDelete by remember { mutableStateOf<File?>(null) }
     var videoToSearchSubtitles by remember { mutableStateOf<File?>(null) }
     var videoToImportSubtitles by remember { mutableStateOf<File?>(null) }
     var videoForQuiz by remember { mutableStateOf<File?>(null) }
@@ -63,6 +67,9 @@ fun VideoListScreen(
     var subtitleSearchQuery by remember { mutableStateOf("") }
     var newFileName by remember { mutableStateOf("") }
     var selectedDifficulty by remember { mutableStateOf("קל") }
+
+    var isGeneratingSubtitles by remember { mutableStateOf(false) }
+    var generationProgress by remember { mutableStateOf("") }
 
     val handleBack = {
         if (currentDir != rootVideoDir) {
@@ -213,10 +220,61 @@ fun VideoListScreen(
                                 videoToImportSubtitles = file
                                 importSubtitleLauncher.launch("*/*")
                             },
-                            onDelete = { videoToDelete = file },
+                            onGenerateSubtitles = {
+                                scope.launch {
+                                    isGeneratingSubtitles = true
+                                    val result = SubtitleGenerator.generateSubtitles(
+                                        context, file, userId
+                                    ) { progress ->
+                                        generationProgress = progress
+                                    }
+                                    isGeneratingSubtitles = false
+                                    
+                                    result.onSuccess {
+                                        Toast.makeText(context, "כתוביות נוצרו בהצלחה!", Toast.LENGTH_SHORT).show()
+                                        currentDir = File(currentDir.absolutePath)
+                                    }.onFailure { e ->
+                                        Toast.makeText(context, "שגיאה: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            onDelete = { 
+                                if (file.isDirectory) {
+                                    folderToDelete = file
+                                } else {
+                                    videoToDelete = file 
+                                }
+                            },
                             onMove = { videoToMove = file }
                         )
                     }
+                }
+            }
+        }
+
+        if (isGeneratingSubtitles) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.7f)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "מייצר כתוביות בעזרת AI...",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = generationProgress,
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }
@@ -357,7 +415,10 @@ fun VideoListScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (videoToDelete?.delete() == true) {
+                        val file = videoToDelete!!
+                        val srtFile = File(file.parentFile, "${file.nameWithoutExtension}.srt")
+                        if (srtFile.exists()) srtFile.delete()
+                        if (file.delete()) {
                             currentDir = File(currentDir.absolutePath)
                         }
                         videoToDelete = null
@@ -370,18 +431,65 @@ fun VideoListScreen(
             dismissButton = {
                 Row {
                     TextButton(onClick = {
-                        videoToDelete?.let { FileUtils.exportVideoToGallery(context, it) }
-                        if (videoToDelete?.delete() == true) {
+                        videoToDelete?.let { FileUtils.exportVideoToMovies(context, it) }
+                        val file = videoToDelete!!
+                        val srtFile = File(file.parentFile, "${file.nameWithoutExtension}.srt")
+                        if (srtFile.exists()) srtFile.delete()
+                        if (file.delete()) {
                             currentDir = File(currentDir.absolutePath)
                         }
                         videoToDelete = null
-                        Toast.makeText(context, "הסרטון הועבר לגלריה", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "הסרטון הועבר לתיקיית הסרטים", Toast.LENGTH_SHORT).show()
                     }) {
-                        Text("העבר לגלריה")
+                        Text("החזר לסרטים")
                     }
                     TextButton(onClick = { videoToDelete = null }) {
                         Text("ביטול")
                     }
+                }
+            }
+        )
+    }
+
+    if (folderToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { folderToDelete = null },
+            title = { Text("מחיקת תיקייה") },
+            text = { Text("האם ברצונך למחוק את התיקייה '${folderToDelete?.name}'? בחר מה לעשות עם התוכן שלה:") },
+            confirmButton = {
+                Column {
+                    Button(
+                        onClick = {
+                            folderToDelete?.deleteRecursively()
+                            currentDir = File(currentDir.absolutePath)
+                            folderToDelete = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("מחק את התיקייה וכל תוכנה")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val folder = folderToDelete!!
+                            folder.listFiles()?.forEach { child ->
+                                child.renameTo(File(rootVideoDir, child.name))
+                            }
+                            folder.delete()
+                            currentDir = File(currentDir.absolutePath)
+                            folderToDelete = null
+                            Toast.makeText(context, "התוכן הועבר לתיקייה הראשית", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("העבר תוכן לתיקייה ראשית ומחק תיקייה")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { folderToDelete = null }) {
+                    Text("ביטול")
                 }
             }
         )
@@ -429,6 +537,7 @@ fun VideoItem(
     onRename: () -> Unit,
     onSearchSubtitles: () -> Unit,
     onImportSubtitles: () -> Unit,
+    onGenerateSubtitles: () -> Unit,
     onDelete: () -> Unit,
     onMove: () -> Unit
 ) {
@@ -453,9 +562,9 @@ fun VideoItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                if (isDirectory) Icons.Default.Folder else Icons.Default.PlayCircle, 
+                if (isDirectory) Icons.Default.FolderSpecial else Icons.Default.PlayCircle, 
                 null, 
-                tint = if (isDirectory) Color(0xFFFBC02D) else MaterialTheme.colorScheme.primary,
+                tint = if (isDirectory) Color(0xFFFFD600) else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(40.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -515,7 +624,10 @@ fun VideoItem(
             
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Actions")
+                    Icon(
+                        if (isDirectory) Icons.Default.MoreVert else Icons.Default.Settings, 
+                        contentDescription = "Actions"
+                    )
                 }
                 DropdownMenu(
                     expanded = showMenu,
@@ -558,6 +670,14 @@ fun VideoItem(
                     )
                     if (!isDirectory) {
                         DropdownMenuItem(
+                            text = { Text("ייצור כתוביות AI (אוטומטי)", color = MaterialTheme.colorScheme.primary) },
+                            leadingIcon = { Icon(Icons.Default.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = {
+                                showMenu = false
+                                onGenerateSubtitles()
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("חפש כתוביות") },
                             leadingIcon = { Icon(Icons.Default.Subtitles, null) },
                             onClick = {
@@ -582,6 +702,33 @@ fun VideoItem(
                             showMenu = false
                             onDelete()
                         }
+                    )
+                }
+            }
+        }
+
+        if (isGeneratingSubtitles) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.7f)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "מייצר כתוביות בעזרת AI...",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = generationProgress,
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }

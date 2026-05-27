@@ -68,12 +68,12 @@ object FileUtils {
         }
     }
 
-    fun exportVideoToGallery(context: Context, file: File) {
+    fun exportVideoToMovies(context: Context, file: File) {
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
             put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
-            put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/LingoFlix")
+            put(MediaStore.Video.Media.RELATIVE_PATH, "Movies")
         }
 
         val uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)

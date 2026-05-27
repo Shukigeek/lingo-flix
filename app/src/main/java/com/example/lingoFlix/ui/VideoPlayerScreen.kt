@@ -3,6 +3,7 @@ package com.example.lingoFlix.ui
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.*
@@ -40,7 +41,9 @@ import androidx.media3.ui.PlayerView
 import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.ui.components.XRayDialog
 import com.example.lingoFlix.utils.SrtParser
+import com.example.lingoFlix.utils.SubtitleGenerator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
@@ -63,6 +66,7 @@ fun VideoPlayerScreen(
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
     var isFullScreen by remember { mutableStateOf(false) }
     var currentClipIndex by remember { mutableIntStateOf(0) }
     
@@ -127,6 +131,11 @@ fun VideoPlayerScreen(
     var showXRay by remember { mutableStateOf(false) }
     var xRayLine by remember { mutableStateOf("") }
     
+    // Subtitle Generation State
+    var isGeneratingSubtitles by remember { mutableStateOf(false) }
+    var generationProgress by remember { mutableStateOf("") }
+    var subtitlesGeneratedTrigger by remember { mutableIntStateOf(0) }
+    
     // Detected language for the video
     val detectedLanguage = remember(videoUri) {
         if (videoUri.scheme == "file") {
@@ -175,7 +184,7 @@ fun VideoPlayerScreen(
     }
     
     // Always load clips if possible for favoriting
-    val allClipsForThisVideo = remember(videoUri) {
+    val allClipsForThisVideo = remember(videoUri, subtitlesGeneratedTrigger) {
         if (videoUri.scheme == "file") {
             val videoFile = File(videoUri.path!!)
             val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
@@ -285,7 +294,9 @@ fun VideoPlayerScreen(
     }
     
     DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             val window = activity?.window
             if (window != null) {
@@ -319,6 +330,33 @@ fun VideoPlayerScreen(
                 parties = confettiState
             )
         }
+
+        if (isGeneratingSubtitles) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.7f)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "מייצר כתוביות בעזרת AI...",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = generationProgress,
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
         
         // Custom HUD
         Column(modifier = Modifier.fillMaxSize()) {
@@ -345,6 +383,45 @@ fun VideoPlayerScreen(
                         contentDescription = "Toggle Fullscreen",
                         tint = Color.White
                     )
+                }
+            }
+
+            if (clips == null && allClipsForThisVideo.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("אין כתוביות לסרטון הזה", color = Color.White)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                if (videoUri.scheme == "file") {
+                                    val videoFile = File(videoUri.path!!)
+                                    scope.launch {
+                                        isGeneratingSubtitles = true
+                                        val result = SubtitleGenerator.generateSubtitles(
+                                            context, videoFile, userId
+                                        ) { progress ->
+                                            generationProgress = progress
+                                        }
+                                        isGeneratingSubtitles = false
+                                        result.onSuccess {
+                                            subtitlesGeneratedTrigger++
+                                            // Optional: reload the player to show subtitles
+                                        }.onFailure { e ->
+                                            android.widget.Toast.makeText(context, "שגיאה: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.AutoFixHigh, null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("ייצר כתוביות בעזרת AI")
+                        }
+                    }
                 }
             }
 

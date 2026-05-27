@@ -267,7 +267,8 @@ fun MainContent() {
                     }
                 },
                 onToggleDifficulty = { quizDifficulty = it },
-                onSettingsRequested = { currentScreen = "settings" }
+                onSettingsRequested = { currentScreen = "settings" },
+                userId = currentUser?.id ?: "guest"
             )
         }
     }
