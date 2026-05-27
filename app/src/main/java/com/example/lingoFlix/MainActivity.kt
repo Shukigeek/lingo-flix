@@ -79,6 +79,7 @@ fun MainContent() {
     var selectedVideoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var practiceClips by rememberSaveable { mutableStateOf<List<SubtitleClip>?>(null) }
     var isQuizModeActive by rememberSaveable { mutableStateOf(false) }
+    var isRandomModeActive by rememberSaveable { mutableStateOf(false) }
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
 
     LaunchedEffect(linkedToRandomPool) {
@@ -129,7 +130,7 @@ fun MainContent() {
         Image(
             painter = painterResource(id = R.drawable.friends),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize().alpha(0.15f), // Semi-transparent to not distract
+            modifier = Modifier.fillMaxSize().alpha(0.25f), // Slightly more opaque for better visibility
             contentScale = ContentScale.Crop
         )
 
@@ -223,11 +224,15 @@ fun MainContent() {
                             // Recursively find all SRT files in the video directory
                             videoDir.walkTopDown().forEach { file ->
                                 if (!file.isDirectory && file.extension.lowercase() == "srt") {
-                                    val possibleVideoFile = File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    // Try to find the corresponding video file with common extensions
+                                    val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
+                                    val videoFile = videoExtensions.map { ext -> 
+                                        File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
+                                    }.firstOrNull { it.exists() } ?: File(file.parentFile, "${file.nameWithoutExtension}.mp4")
                                     
-                                    if (linkedToRandomPool.contains(possibleVideoFile.name) || 
+                                    if (linkedToRandomPool.contains(videoFile.name) || 
                                         linkedToRandomPool.contains(file.nameWithoutExtension)) {
-                                        val videoUri = Uri.fromFile(possibleVideoFile)
+                                        val videoUri = Uri.fromFile(videoFile)
                                         allClips.addAll(SrtParser.parseSrtFile(file, videoUri))
                                     }
                                 }
@@ -237,6 +242,7 @@ fun MainContent() {
                                 practiceClips = allClips.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
+                                isRandomModeActive = true
                                 currentScreen = "player"
                             } else {
                                 Toast.makeText(context, "קודם צריך לקשר סרטונים עם כתוביות למאגר", Toast.LENGTH_LONG).show()
@@ -258,9 +264,14 @@ fun MainContent() {
                             // Walk through all directories and find all SRT files
                             videoDir.walkTopDown().forEach { file ->
                                 if (!file.isDirectory && file.extension.lowercase() == "srt") {
-                                    val videoFile = File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
+                                    val videoFile = videoExtensions.map { ext -> 
+                                        File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
+                                    }.firstOrNull { it.exists() } ?: File(file.parentFile, "${file.nameWithoutExtension}.mp4")
+                                    
                                     val clips = SrtParser.parseSrtFile(file, Uri.fromFile(videoFile))
                                     clips.forEach { clip ->
+                                        // Standardize clipId format
                                         val clipId = "${videoFile.name}|${clip.startTimeMs}"
                                         if (favoriteClips.contains(clipId)) {
                                             favClipsList.add(clip)
@@ -273,6 +284,7 @@ fun MainContent() {
                                 practiceClips = favClipsList.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
+                                isRandomModeActive = true
                                 currentScreen = "player"
                             } else {
                                 Toast.makeText(context, "עדיין לא שמרת משפטים מועדפים!", Toast.LENGTH_LONG).show()
@@ -291,6 +303,7 @@ fun MainContent() {
                             currentScreen = "video_list"
                             practiceClips = null
                             isQuizModeActive = false
+                            isRandomModeActive = false
                         },
                         favoriteClips = favoriteClips,
                         onToggleFavorite = { clipId ->
@@ -301,6 +314,7 @@ fun MainContent() {
                             }
                         },
                         isQuizMode = isQuizModeActive,
+                        isRandomMode = isRandomModeActive,
                         difficulty = quizDifficulty,
                         onCorrectAnswer = {
                             val points = when (quizDifficulty) {

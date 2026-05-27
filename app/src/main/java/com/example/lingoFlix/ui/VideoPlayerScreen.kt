@@ -67,6 +67,7 @@ fun VideoPlayerScreen(
     favoriteClips: Set<String> = emptySet(),
     onToggleFavorite: (String) -> Unit = {},
     isQuizMode: Boolean = false,
+    isRandomMode: Boolean = false,
     difficulty: String = "קל",
     onCorrectAnswer: () -> Unit = {},
     userId: String = "guest"
@@ -84,7 +85,6 @@ fun VideoPlayerScreen(
             if (videoUri.scheme == "file") {
                 File(videoUri.path!!).name
             } else if (videoUri.scheme == "content") {
-                // For content URIs, try to get the display name or use a hash
                 videoUri.lastPathSegment ?: videoUri.toString().hashCode().toString()
             } else {
                 videoUri.toString().hashCode().toString()
@@ -463,42 +463,51 @@ fun VideoPlayerScreen(
             if (showNoSubtitlesMessage) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.BottomCenter
                 ) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.7f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(16.dp)
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier.padding(bottom = 100.dp, start = 16.dp, end = 16.dp)
                     ) {
                         Text(
                             text = "אין כתוביות לסרטון הזה",
                             color = Color.White,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyLarge
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
 
             if (clips != null && subtitlesVisible) {
-                // Progress Bar for Quiz
-                LinearProgressIndicator(
-                    progress = { (currentClipIndex + 1).toFloat() / clips.size },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.White.copy(alpha = 0.3f)
-                )
-                Text(
-                    text = "משפט ${currentClipIndex + 1} מתוך ${clips.size}",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                )
+                if (!isRandomMode) {
+                    // Progress Bar for Quiz
+                    LinearProgressIndicator(
+                        progress = { (currentClipIndex + 1).toFloat() / clips.size },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.3f)
+                    )
+                    Text(
+                        text = "משפט ${currentClipIndex + 1} מתוך ${clips.size}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.weight(1f))
                 
                 val currentClip = clips[currentClipIndex]
-                val clipId = "$videoFileName|${currentClip.startTimeMs}"
+                val currentClipVideoName = remember(currentClip.videoUri) {
+                    if (currentClip.videoUri.scheme == "file") {
+                        File(currentClip.videoUri.path!!).name
+                    } else {
+                        currentClip.videoUri.lastPathSegment ?: currentClip.videoUri.toString().hashCode().toString()
+                    }
+                }
+                val clipId = "$currentClipVideoName|${currentClip.startTimeMs}"
                 val isFavorite = favoriteClips.contains(clipId)
 
                 val infiniteTransition = rememberInfiniteTransition(label = "border")

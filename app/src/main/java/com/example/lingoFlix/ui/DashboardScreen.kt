@@ -49,12 +49,13 @@ fun DashboardScreen(
     val userProgress = xpInCurrentLevel / 1000f
 
     Scaffold(
+        containerColor = Color.Transparent, // Make scaffold transparent to show background image
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallFloatingActionButton(
                     onClick = onFavorites,
                     containerColor = Color(0xFFFFC107),
-                    contentColor = Color.White
+                    contentColor = Color.Black
                 ) {
                     Icon(Icons.Default.Star, contentDescription = "Favorites")
                 }
@@ -82,27 +83,39 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(top = 24.dp, bottom = 80.dp)
                 ) {
                     item {
-                        Text(
-                            text = "היי $userName!\nמה נלמד היום?",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            lineHeight = 34.sp
-                        )
+                        Surface(
+                            color = Color.White.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "היי $userName!",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1CB0F6),
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
 
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            color = Color.White.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "הסרטונים האחרונים",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "הסרטונים האחרונים",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4B4B4B)
+                                )
+                            }
                         }
                     }
 
@@ -132,8 +145,8 @@ fun DashboardScreen(
                         DuoButton(
                             text = "למאגר הסרטונים שלי",
                             onClick = onMyVideos,
-                            color = DuoBlue,
-                            darkColor = DuoBlue.copy(alpha = 0.8f),
+                            color = Color(0xFF1CB0F6), // DuoBlue
+                            darkColor = Color(0xFF1899D6),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -151,12 +164,19 @@ fun DashboardScreen(
 
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "הסטטיסטיקה השבועית",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
+                        Surface(
+                            color = Color.White.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "הסטטיסטיקה השבועית",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4B4B4B),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
                     }
 
                     item {
@@ -195,19 +215,19 @@ fun VideoCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.9f),
         border = androidx.compose.foundation.BorderStroke(2.dp, DuoGray),
-        shadowElevation = 2.dp
+        shadowElevation = 1.dp
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(DuoBlue, DuoBlue.copy(alpha = 0.6f))
@@ -215,27 +235,22 @@ fun VideoCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = file.name,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     color = Color(0xFF4B4B4B),
                     maxLines = 1
                 )
-                Text(
-                    text = "תרגול וידאו",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
             }
             
-            Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = DuoGray)
+            Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = DuoGray, modifier = Modifier.size(20.dp))
         }
     }
 }
