@@ -97,7 +97,7 @@ fun VideoPlayerScreen(
     var savedIndex by remember { mutableIntStateOf(-1) }
 
     LaunchedEffect(videoFileName, clips) {
-        if (clips != null && videoFileName != "unknown") {
+        if (clips != null && videoFileName != "unknown" && !isRandomMode) {
             val prefs = context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
             val progress = prefs.getInt("progress_$videoFileName", -1)
             if (progress > 0 && progress < clips.size) {
@@ -108,7 +108,7 @@ fun VideoPlayerScreen(
     }
 
     LaunchedEffect(currentClipIndex) {
-        if (clips != null && videoFileName != "unknown") {
+        if (clips != null && videoFileName != "unknown" && !isRandomMode) {
             context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
                 .edit()
                 .putInt("progress_$videoFileName", currentClipIndex)
@@ -174,12 +174,13 @@ fun VideoPlayerScreen(
     var generationProgress by remember { mutableStateOf("") }
     var subtitlesGeneratedTrigger by remember { mutableIntStateOf(0) }
     
-    var showNoSubtitlesMessage by remember { mutableStateOf(false) }
+    var showInfoMessage by remember { mutableStateOf<String?>(null) }
     
     // Detected language for the video
-    val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger) {
-        if (videoUri.scheme == "file") {
-            val videoFile = File(videoUri.path!!)
+    val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger, currentClipIndex, clips) {
+        val targetUri = if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex].videoUri else videoUri
+        if (targetUri.scheme == "file") {
+            val videoFile = File(targetUri.path!!)
             val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
             if (srtFile.exists()) SrtParser.detectSubtitleLanguage(srtFile) else "אנגלית"
         } else "אנגלית"
@@ -202,7 +203,7 @@ fun VideoPlayerScreen(
 
     // Prepare quiz for current clip
     LaunchedEffect(currentClipIndex, clips, isQuizMode) {
-        if (isQuizMode && clips != null) {
+        if (isQuizMode && clips != null && currentClipIndex < clips.size) {
             val originalText = clips[currentClipIndex].text
             // Split by spaces and punctuation
             val words = originalText.split(Regex("(?<=\\s)|(?=\\s)|(?<=[.,!?;])|(?=[.,!?;])")).filter { it.isNotBlank() }
@@ -232,61 +233,53 @@ fun VideoPlayerScreen(
         } else emptyList()
     }
 
-    val exoPlayer = remember(videoUri) {
-        val videoFile = if (videoUri.scheme == "file") File(videoUri.path!!) else null
-        val srtFile = videoFile?.let { File(it.parentFile, "${it.nameWithoutExtension}.srt") }
-
-        val mediaItemBuilder = MediaItem.Builder()
-            .setUri(videoUri)
-
-        if (srtFile != null && srtFile.exists() && clips == null) {
-            val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(srtFile))
-                .setMimeType(MimeTypes.APPLICATION_SUBRIP)
-                .setLanguage("he")
-                .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
-                .build()
-            mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
-        }
-
+    val exoPlayer = remember(context) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(mediaItemBuilder.build())
             prepare()
             playWhenReady = true
-            trackSelectionParameters = trackSelectionParameters.buildUpon()
+        }
+    }
+    
+    // Handle Video Change
+    LaunchedEffect(videoUri, clips, currentClipIndex) {
+        val targetUri = if (clips != null && currentClipIndex < clips.size) {
+            clips[currentClipIndex].videoUri
+        } else {
+            videoUri
+        }
+
+        if (exoPlayer.currentMediaItem?.localConfiguration?.uri != targetUri) {
+            val mediaItemBuilder = MediaItem.Builder().setUri(targetUri)
+            
+            // Add subtitles if in regular mode and available
+            if (clips == null) {
+                if (targetUri.scheme == "file") {
+                    val videoFile = File(targetUri.path!!)
+                    val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
+                    if (srtFile.exists()) {
+                        val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(srtFile))
+                            .setMimeType(MimeTypes.APPLICATION_SUBRIP)
+                            .setLanguage("he")
+                            .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
+                            .build()
+                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
+                    }
+                }
+            }
+
+            exoPlayer.setMediaItem(mediaItemBuilder.build())
+            exoPlayer.prepare()
+            exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
                 .setPreferredAudioLanguage(preferredAudioLang)
                 .build()
-        }
-    }
-    
-    // Track current position for favoriting in regular mode
-    var currentPlaybackPosition by remember { mutableLongStateOf(0L) }
-    
-    if (clips == null && allClipsForThisVideo.isNotEmpty()) {
-        LaunchedEffect(Unit) {
-            while (true) {
-                currentPlaybackPosition = exoPlayer.currentPosition
-                delay(500)
-            }
-        }
-    }
-
-    // Logic for playing specific clips
-    LaunchedEffect(clips, currentClipIndex) {
-        clips?.let {
-            val clip = it[currentClipIndex]
             
-            val currentUri = exoPlayer.currentMediaItem?.localConfiguration?.uri
-            if (currentUri != clip.videoUri) {
-                val mediaItemBuilder = MediaItem.Builder().setUri(clip.videoUri)
-                exoPlayer.setMediaItem(mediaItemBuilder.build())
-                exoPlayer.prepare()
-                // Wait a bit for preparation if URI changed
-                delay(200)
+            if (clips != null) {
+                exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
             }
-
-            exoPlayer.seekTo(clip.startTimeMs)
-            exoPlayer.play()
+        } else if (clips != null) {
+            exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
         }
+        exoPlayer.play()
     }
 
     // Check if clip ended
@@ -294,9 +287,11 @@ fun VideoPlayerScreen(
         LaunchedEffect(Unit) {
             while (true) {
                 delay(100)
-                val clip = clips[currentClipIndex]
-                if (exoPlayer.currentPosition >= clip.endTimeMs) {
-                    exoPlayer.pause()
+                if (currentClipIndex < clips.size) {
+                    val clip = clips[currentClipIndex]
+                    if (exoPlayer.currentPosition >= clip.endTimeMs) {
+                        exoPlayer.pause()
+                    }
                 }
             }
         }
@@ -454,13 +449,13 @@ fun VideoPlayerScreen(
 
             if (clips == null && allClipsForThisVideo.isEmpty()) {
                 LaunchedEffect(Unit) {
-                    showNoSubtitlesMessage = true
+                    showInfoMessage = "אין כתוביות לסרטון הזה"
                     delay(5000)
-                    showNoSubtitlesMessage = false
+                    showInfoMessage = null
                 }
             }
 
-            if (showNoSubtitlesMessage) {
+            if (showInfoMessage != null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter
@@ -470,17 +465,23 @@ fun VideoPlayerScreen(
                         shape = RoundedCornerShape(24.dp),
                         modifier = Modifier.padding(bottom = 100.dp, start = 16.dp, end = 16.dp)
                     ) {
-                        Text(
-                            text = "אין כתוביות לסרטון הזה",
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.Info, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = showInfoMessage!!,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
 
-            if (clips != null && subtitlesVisible) {
+            if (clips != null && subtitlesVisible && currentClipIndex < clips.size) {
                 if (!isRandomMode) {
                     // Progress Bar for Quiz
                     LinearProgressIndicator(

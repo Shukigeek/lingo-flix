@@ -2,6 +2,7 @@ package com.example.lingoFlix.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,7 +51,7 @@ fun DashboardScreen(
     val userProgress = xpInCurrentLevel / 1000f
 
     Scaffold(
-        containerColor = Color.Transparent, // Make scaffold transparent to show background image
+        containerColor = Color.Transparent, 
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallFloatingActionButton(
@@ -86,36 +88,94 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.85f), RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
                                 .padding(16.dp)
                         ) {
                             Text(
                                 text = "היי $userName!",
-                                fontSize = 24.sp,
+                                fontSize = 28.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF1CB0F6)
+                                color = Color(0xFFFF9600) // Orange color
                             )
                             
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             
-                            Text(
-                                text = "הסרטונים האחרונים",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4B4B4B)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "רמה ${totalXP / 1000 + 1}",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "$xpInCurrentLevel / 1000 XP",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            LinearProgressIndicator(
+                                progress = { userProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                color = Color(0xFF58CC02),
+                                trackColor = Color(0xFFE5E5E5),
                             )
+                        }
+                    }
+
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
+                                .padding(16.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(20.dp)
+                                        .background(Color(0xFFFF9600), RoundedCornerShape(2.dp))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "הסרטונים האחרונים",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4B4B4B)
+                                )
+                            }
                             
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             if (videoProjects.isEmpty()) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(100.dp)
-                                        .background(DuoGray.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                                        .background(Color(0xFFF7F7F7), RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("אין סרטונים עדיין", color = Color.Gray)
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.VideoLibrary,
+                                            contentDescription = null,
+                                            tint = Color(0xFFE5E5E5),
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("אין סרטונים עדיין", color = Color.Gray)
+                                    }
                                 }
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -154,15 +214,24 @@ fun DashboardScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.85f), RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(20.dp))
                                 .padding(16.dp)
                         ) {
-                            Text(
-                                text = "הסטטיסטיקה השבועית",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4B4B4B)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(20.dp)
+                                        .background(Color(0xFFFF9600), RoundedCornerShape(2.dp))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "הסטטיסטיקה השבועית",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4B4B4B)
+                                )
+                            }
                             
                             Spacer(modifier = Modifier.height(12.dp))
                             
@@ -203,8 +272,8 @@ fun VideoCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = Color.White.copy(alpha = 0.5f), // Even lighter to blend in
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuoGray.copy(alpha = 0.5f)),
+        color = Color(0xFFF7F7F7),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E5E5)),
     ) {
         Row(
             modifier = Modifier.padding(8.dp),
@@ -216,7 +285,7 @@ fun VideoCard(
                     .clip(RoundedCornerShape(8.dp))
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(DuoBlue, DuoBlue.copy(alpha = 0.6f))
+                            colors = listOf(Color(0xFF1CB0F6), Color(0xFF0077B6))
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -235,7 +304,7 @@ fun VideoCard(
                 modifier = Modifier.weight(1f)
             )
             
-            Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = DuoGray, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = Color(0xFF58CC02), modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -251,8 +320,8 @@ fun StatBox(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = Color.White.copy(alpha = 0.6f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuoGray.copy(alpha = 0.5f))
+        color = Color(0xFFF7F7F7),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E5E5))
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
