@@ -706,32 +706,5 @@ fun VideoItem(
                 }
             }
         }
-
-        if (isGeneratingSubtitles) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color.Black.copy(alpha = 0.7f)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "מייצר כתוביות בעזרת AI...",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = generationProgress,
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.lingoFlix.ui.components
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,9 +79,9 @@ fun DuoButton(
 }
 
 @Composable
-fun ProgressBar(progress: Float) {
+fun ProgressBar(progress: Float, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(16.dp)
             .background(DuoGray, RoundedCornerShape(8.dp))
@@ -98,49 +100,172 @@ fun ProgressBar(progress: Float) {
 fun FeedbackBanner(
     isCorrect: Boolean,
     correctText: String,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    isVisible: Boolean = true,
+    currentStreak: Int = 0
 ) {
-    val bgColor = if (isCorrect) Color(0xFFD7FFB8) else Color(0xFFFFDFE0)
-    val textColor = if (isCorrect) DuoDarkGreen else DuoDarkRed
-    val btnColor = if (isCorrect) DuoGreen else DuoRed
-    val btnDarkColor = if (isCorrect) DuoDarkGreen else DuoDarkRed
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // Sound effect
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            val soundUri = if (isCorrect) {
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+            } else {
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI // Fallback
+            }
+            try {
+                val mediaPlayer = android.media.MediaPlayer.create(context, soundUri)
+                mediaPlayer.start()
+                mediaPlayer.setOnCompletionListener { it.release() }
+            } catch (e: Exception) {}
+        }
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(bgColor)
-            .padding(24.dp)
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (isCorrect) "מצוין!" else "לא בדיוק...",
-                color = textColor,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 24.sp
-            )
+        val bgColor = if (isCorrect) Color(0xFFD7FFB8) else Color(0xFFFFDFE0)
+        val textColor = if (isCorrect) DuoDarkGreen else DuoDarkRed
+        val btnColor = if (isCorrect) DuoGreen else DuoRed
+        val btnDarkColor = if (isCorrect) DuoDarkGreen else DuoDarkRed
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(bgColor)
+                    .padding(24.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isCorrect) "מצוין!" else "לא בדיוק...",
+                        color = textColor,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 24.sp
+                    )
+                    
+                    if (isCorrect && currentStreak > 0 && currentStreak % 5 == 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "🔥 $currentStreak תשובות ברצף!",
+                            color = Color(0xFFFF9600),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                }
+                
+                if (!isCorrect) {
+                    Text(
+                        text = "התשובה הנכונה:",
+                        color = textColor,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    Text(
+                        text = correctText,
+                        color = textColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                DuoButton(
+                    text = "המשך",
+                    onClick = onNext,
+                    color = btnColor,
+                    darkColor = btnDarkColor,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Simple Confetti Effect
+            if (isCorrect && currentStreak > 0 && currentStreak % 5 == 0) {
+                ConfettiEffect()
+            }
         }
+    }
+}
+
+@Composable
+fun ConfettiEffect() {
+    val particles = remember { List(10) { (0..100).random() to (0..100).random() } }
+    
+    particles.forEach { (x, _) ->
+        var offsetY by remember { mutableStateOf(0f) }
+        var alpha by remember { mutableStateOf(1f) }
         
-        if (!isCorrect) {
-            Text(
-                text = "התשובה הנכונה:",
-                color = textColor,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-            Text(
-                text = correctText,
-                color = textColor
-            )
+        val animatedOffsetY by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = -300f,
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)
+        )
+        val animatedAlpha by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = 0f,
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)
+        )
+        
+        LaunchedEffect(Unit) {
+            offsetY = -300f
+            alpha = 0f
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        DuoButton(
-            text = "המשך",
-            onClick = onNext,
-            color = btnColor,
-            darkColor = btnDarkColor,
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "🎉",
+            modifier = Modifier
+                .offset(x = (x * 3).dp, y = animatedOffsetY.dp)
+                .alpha(animatedAlpha),
+            fontSize = 24.sp
         )
+    }
+}
+
+@Composable
+fun WordTile(
+    word: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
+) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    
+    Box(
+        modifier = modifier
+            .padding(4.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                enabled = !isSelected
+            )
+            .background(
+                if (isSelected) DuoGray else Color.White,
+                RoundedCornerShape(12.dp)
+            )
+            .border(
+                2.dp,
+                if (isSelected) DuoGray else DuoGray,
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = word,
+            color = if (isSelected) Color.Transparent else Color(0xFF4B4B4B),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium
+        )
+        if (!isSelected) {
+            // Add a small shadow effect to tiles
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .offset(y = 2.dp)
+                    .background(Color.Black.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+            )
+        }
     }
 }

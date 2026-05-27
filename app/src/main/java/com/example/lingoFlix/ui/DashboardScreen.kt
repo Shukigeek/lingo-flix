@@ -2,24 +2,29 @@ package com.example.lingoFlix.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.R
 import com.example.lingoFlix.ui.components.*
+import java.io.File
 
 @Composable
 fun DashboardScreen(
@@ -27,162 +32,178 @@ fun DashboardScreen(
     onUploadVideo: () -> Unit = {},
     onRandomSentences: () -> Unit = {},
     onFavorites: () -> Unit = {},
+    onVideoSelected: (File) -> Unit = {},
     totalXP: Int = 0,
     currentStreak: Int = 0,
     userName: String = "Lingo Learner"
 ) {
-    // Determine progress based on XP (e.g., 5000 XP per level)
+    val context = LocalContext.current
+    val videoDir = remember { File(context.filesDir, "videos") }
+    val videoProjects = remember(videoDir) {
+        videoDir.listFiles()?.filter { it.extension != "srt" }?.take(5) ?: emptyList()
+    }
+    
     val xpInCurrentLevel = totalXP % 1000
     val userProgress = xpInCurrentLevel / 1000f
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // --- Background Image (Friends TV Show) ---
-        // Note: Make sure friends_bg exists in your drawable folder.
-        // I've uncommented this so it actually tries to load the image.
-        Image(
-            painter = painterResource(id = R.drawable.friends),
-            contentDescription = "Friends Background",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.5f // Fade it a bit so buttons stand out
-        )
-        
-        // Gradient Overlay to ensure text readability on top of the image
+    Scaffold(
+        floatingActionButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallFloatingActionButton(
+                    onClick = onFavorites,
+                    containerColor = Color(0xFFFFC107),
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = "Favorites")
+                }
+                FloatingActionButton(
+                    onClick = onUploadVideo,
+                    containerColor = DuoGreen,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Upload")
+                }
+            }
+        }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                        startY = 300f
-                    )
-                )
-        )
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            // --- Top Progress Bar ---
-            Surface(
-                color = Color.Black.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(padding)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // --- Top Header ---
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 2.dp
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp, vertical = 16.dp)
                     ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ההתקדמות שלך",
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${(userProgress * 100).toInt()}%",
+                                color = DuoGreen,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ProgressBar(progress = userProgress)
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 24.dp, bottom = 80.dp)
+                ) {
+                    item {
                         Text(
-                            text = "ההתקדמות שלך",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${(userProgress * 100).toInt()}%",
-                            color = DuoGreen,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            text = "היי $userName!\nמה נלמד היום?",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            lineHeight = 34.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ProgressBar(progress = userProgress)
-                }
-            }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(top = 40.dp, bottom = 40.dp)
-            ) {
-                item {
-                    Text(
-                        text = "היי $userName!\nמוכן ללמוד?",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        lineHeight = 38.sp
-                    )
-                }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "הסרטונים האחרונים",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            TextButton(onClick = onMyVideos) {
+                                Text("ראה הכל", color = DuoBlue)
+                            }
+                        }
+                    }
 
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // --- Button to view My Videos ---
-                    DuoButton(
-                        text = "הסרטונים שלי",
-                        onClick = onMyVideos,
-                        color = DuoBlue,
-                        darkColor = DuoBlue.copy(alpha = 0.7f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // --- Button to upload a video ---
-                    DuoButton(
-                        text = "העלאת סרטון",
-                        onClick = onUploadVideo,
-                        color = DuoGreen, // You can choose a different color if you like
-                        darkColor = DuoDarkGreen,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (videoProjects.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(150.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(DuoGray.copy(alpha = 0.5f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("אין סרטונים עדיין", color = Color.Gray)
+                            }
+                        }
+                    } else {
+                        items(videoProjects) { file ->
+                            VideoCard(
+                                file = file,
+                                onClick = { onVideoSelected(file) }
+                            )
+                        }
+                    }
                     
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // --- Button to choose Random Sentences ---
-                    DuoButton(
-                        text = "משפטים רנדומליים",
-                        onClick = onRandomSentences,
-                        color = DuoGreen,
-                        darkColor = DuoDarkGreen,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // --- Button to view Favorites ---
-                    DuoButton(
-                        text = "משפטים מועדפים ⭐",
-                        onClick = onFavorites,
-                        color = Color(0xFFFFC107), // Gold
-                        darkColor = Color(0xFFFFA000),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "הסטטיסטיקה השבועית",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        StatBoxTransparent(
-                            label = "נקודות XP",
-                            value = totalXP.toString(),
-                            icon = Icons.Default.Star,
-                            color = Color(0xFFFFC107),
-                            modifier = Modifier.weight(1f)
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        DuoButton(
+                            text = "משפטים רנדומליים",
+                            onClick = onRandomSentences,
+                            color = DuoBlue,
+                            darkColor = DuoBlue.copy(alpha = 0.8f),
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        StatBoxTransparent(
-                            label = "רצף ימים",
-                            value = currentStreak.toString(),
-                            icon = Icons.Default.LocalFireDepartment,
-                            color = Color(0xFFFF9600),
-                            modifier = Modifier.weight(1f)
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "הסטטיסטיקה השבועית",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            StatBox(
+                                label = "נקודות XP",
+                                value = totalXP.toString(),
+                                icon = Icons.Default.Star,
+                                color = Color(0xFFFFC107),
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatBox(
+                                label = "רצף ימים",
+                                value = currentStreak.toString(),
+                                icon = Icons.Default.LocalFireDepartment,
+                                color = Color(0xFFFF9600),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
@@ -191,7 +212,76 @@ fun DashboardScreen(
 }
 
 @Composable
-fun StatBoxTransparent(
+fun VideoCard(
+    file: File,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(2.dp, DuoGray),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(DuoBlue, DuoBlue.copy(alpha = 0.6f))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = file.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF4B4B4B),
+                    maxLines = 1
+                )
+                Text(
+                    text = "תרגול וידאו",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Surface(
+                    color = DuoGreen.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "בינוני",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DuoDarkGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            
+            Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = DuoGray)
+        }
+    }
+}
+
+@Composable
+fun StatBox(
     label: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -201,8 +291,8 @@ fun StatBoxTransparent(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(2.dp, DuoGray)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -219,12 +309,12 @@ fun StatBoxTransparent(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = Color(0xFF4B4B4B)
             )
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.7f),
+                color = Color.Gray,
                 fontWeight = FontWeight.Bold
             )
         }
