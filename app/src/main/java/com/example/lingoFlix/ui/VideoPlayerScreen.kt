@@ -76,7 +76,18 @@ fun VideoPlayerScreen(
     
     // Progress Saving and Resuming
     val videoFileName = remember(videoUri) {
-        if (videoUri.scheme == "file") File(videoUri.path!!).name else "unknown"
+        try {
+            if (videoUri.scheme == "file") {
+                File(videoUri.path!!).name
+            } else if (videoUri.scheme == "content") {
+                // For content URIs, try to get the display name or use a hash
+                videoUri.lastPathSegment ?: videoUri.toString().hashCode().toString()
+            } else {
+                videoUri.toString().hashCode().toString()
+            }
+        } catch (e: Exception) {
+            "unknown"
+        }
     }
     var showResumeDialog by remember { mutableStateOf(false) }
     var savedIndex by remember { mutableIntStateOf(-1) }
@@ -148,7 +159,7 @@ fun VideoPlayerScreen(
     var subtitlesGeneratedTrigger by remember { mutableIntStateOf(0) }
     
     // Detected language for the video
-    val detectedLanguage = remember(videoUri) {
+    val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger) {
         if (videoUri.scheme == "file") {
             val videoFile = File(videoUri.path!!)
             val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
@@ -324,7 +335,7 @@ fun VideoPlayerScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF7F7F7))) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -332,7 +343,10 @@ fun VideoPlayerScreen(
                     useController = clips == null
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16/9f)
+                .align(Alignment.TopCenter)
         )
         
         if (confettiState.isNotEmpty()) {
@@ -418,53 +432,11 @@ fun VideoPlayerScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("אין כתוביות לסרטון הזה", color = Color.White)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                if (videoUri.scheme == "file") {
-                                    val videoFile = File(videoUri.path!!)
-                                    scope.launch {
-                                        isGeneratingSubtitles = true
-                                        val result = SubtitleGenerator.generateSubtitles(
-                                            context, videoFile, userId
-                                        ) { progress ->
-                                            generationProgress = progress
-                                        }
-                                        isGeneratingSubtitles = false
-                                        result.onSuccess {
-                                            subtitlesGeneratedTrigger++
-                                            // Optional: reload the player to show subtitles
-                                        }.onFailure { e ->
-                                            android.widget.Toast.makeText(context, "שגיאה: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.AutoFixHigh, null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("ייצר כתוביות בעזרת AI")
-                        }
                     }
                 }
             }
 
             if (clips != null && subtitlesVisible) {
-                // Progress Bar for Quiz
-                LinearProgressIndicator(
-                    progress = { (currentClipIndex + 1).toFloat() / clips.size },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.White.copy(alpha = 0.3f)
-                )
-                Text(
-                    text = "משפט ${currentClipIndex + 1} מתוך ${clips.size}",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                )
-                
                 Spacer(modifier = Modifier.weight(1f))
                 
                 val currentClip = clips[currentClipIndex]

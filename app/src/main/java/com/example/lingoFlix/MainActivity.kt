@@ -9,12 +9,18 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.AutoFixNormal
+import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.DifficultyScreen
 import com.example.lingoFlix.ui.theme.LingoFlixTheme
@@ -87,6 +93,11 @@ fun MainContent() {
             val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, originalName)
             if (savedFile != null) {
                 Toast.makeText(context, "סרטון $originalName נשמר!", Toast.LENGTH_SHORT).show()
+                // Force refresh if we are in video list
+                if (currentScreen == "video_list") {
+                    currentScreen = "dashboard"
+                    currentScreen = "video_list"
+                }
             }
         }
     }
@@ -98,6 +109,9 @@ fun MainContent() {
                 practiceClips = null
                 isQuizModeActive = false
             }
+            "difficulty" -> {
+                currentScreen = "dashboard"
+            }
             "video_list", "settings", "favorites" -> {
                 currentScreen = "dashboard"
             }
@@ -107,208 +121,229 @@ fun MainContent() {
     var showDifficultyDialogForRandom by remember { mutableStateOf(false) }
     var showDifficultyDialogForFavorites by remember { mutableStateOf(false) }
 
-    when (currentScreen) {
-        "difficulty" -> {
-            selectedVideoFile?.let { file ->
-                DifficultyScreen(
-                    videoTitle = file.name,
-                    onDifficultySelected = { difficulty ->
-                        quizDifficulty = when(difficulty) {
-                            com.example.lingoFlix.util.GameLogic.Difficulty.EASY -> "קל"
-                            com.example.lingoFlix.util.GameLogic.Difficulty.MEDIUM -> "בינוני"
-                            com.example.lingoFlix.util.GameLogic.Difficulty.HARD -> "קשה"
-                        }
-                        
-                        val videoName = file.nameWithoutExtension.lowercase()
-                        val videoDir = file.parentFile
-                        val srtFile = videoDir?.listFiles()?.find {
-                            it.extension.lowercase() == "srt" && 
-                            it.nameWithoutExtension.lowercase() == videoName 
-                        } ?: File(videoDir, "${file.nameWithoutExtension}.srt")
+    Box(modifier = Modifier.fillMaxSize()) {
+        // App Background Icons
+        Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            repeat(10) {
+                Row(modifier = Modifier.alpha(0.04f)) {
+                    repeat(5) {
+                        Icon(androidx.compose.material.icons.Icons.Default.Gesture, null, modifier = Modifier.size(100.dp).padding(10.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(androidx.compose.material.icons.Icons.Default.AutoFixNormal, null, modifier = Modifier.size(80.dp).padding(10.dp), tint = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+            }
+        }
 
-                        if (srtFile.exists()) {
-                            val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(file))
-                            if (clips.isNotEmpty()) {
-                                practiceClips = clips 
+        when (currentScreen) {
+            "difficulty" -> {
+                selectedVideoFile?.let { file ->
+                    DifficultyScreen(
+                        videoTitle = file.name,
+                        onDifficultySelected = { difficulty ->
+                            quizDifficulty = when(difficulty) {
+                                com.example.lingoFlix.util.GameLogic.Difficulty.EASY -> "קל"
+                                com.example.lingoFlix.util.GameLogic.Difficulty.MEDIUM -> "בינוני"
+                                com.example.lingoFlix.util.GameLogic.Difficulty.HARD -> "קשה"
+                            }
+                            
+                            val videoName = file.nameWithoutExtension.lowercase()
+                            val videoDir = file.parentFile
+                            val srtFile = videoDir?.listFiles()?.find {
+                                it.extension.lowercase() == "srt" && 
+                                it.nameWithoutExtension.lowercase() == videoName 
+                            } ?: File(videoDir, "${file.nameWithoutExtension}.srt")
+
+                            if (srtFile.exists()) {
+                                val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(file))
+                                if (clips.isNotEmpty()) {
+                                    practiceClips = clips 
+                                    selectedVideoUri = Uri.fromFile(file)
+                                    isQuizModeActive = true
+                                    currentScreen = "player"
+                                } else {
+                                    Toast.makeText(context, "לא נמצאו כתוביות תקינות", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                // Just play the video if no SRT
                                 selectedVideoUri = Uri.fromFile(file)
-                                isQuizModeActive = true
+                                isQuizModeActive = false
                                 currentScreen = "player"
                             }
-                        }
+                        },
+                        onBack = { currentScreen = "dashboard" }
+                    )
+                }
+            }
+
+            "settings" -> {
+                SettingsScreen(
+                    currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
+                    onSaveApiKey = { newKey ->
+                        currentUser?.let { SecurityUtils.saveUserApiKey(context, it.id, newKey) }
+                        currentScreen = "dashboard"
                     },
                     onBack = { currentScreen = "dashboard" }
                 )
             }
-        }
 
-        "settings" -> {
-            SettingsScreen(
-                currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
-                onSaveApiKey = { newKey ->
-                    currentUser?.let { SecurityUtils.saveUserApiKey(context, it.id, newKey) }
-                    currentScreen = "dashboard"
-                },
-                onBack = { currentScreen = "dashboard" }
-            )
-        }
+            "dashboard" -> {
+                DashboardScreen(
+                    onMyVideos = { currentScreen = "video_list" },
+                    onUploadVideo = { pickVideoLauncher.launch("video/*") },
+                    onRandomSentences = { showDifficultyDialogForRandom = true },
+                    onFavorites = { showDifficultyDialogForFavorites = true },
+                    onVideoSelected = { file ->
+                        selectedVideoFile = file
+                        currentScreen = "difficulty"
+                    },
+                    totalXP = totalXP,
+                    currentStreak = currentStreak,
+                    userName = currentUser?.name ?: "לומד"
+                )
+                
+                if (showDifficultyDialogForRandom) {
+                    DifficultySelectionDialog(
+                        onDismiss = { showDifficultyDialogForRandom = false },
+                        onStart = { diff ->
+                            quizDifficulty = diff
+                            showDifficultyDialogForRandom = false
+                            
+                            val videoDir = File(context.filesDir, "videos")
+                            val allClips = mutableListOf<SubtitleClip>()
+                            linkedToRandomPool.forEach { fileName ->
+                                val videoFile = File(videoDir, fileName)
+                                val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
+                                if (srtFile.exists()) {
+                                    allClips.addAll(SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile)))
+                                }
+                            }
 
-        "dashboard" -> {
-            DashboardScreen(
-                onMyVideos = { currentScreen = "video_list" },
-                onUploadVideo = { pickVideoLauncher.launch("video/*") },
-                onRandomSentences = { showDifficultyDialogForRandom = true },
-                onFavorites = { showDifficultyDialogForFavorites = true },
-                onVideoSelected = { file ->
-                    selectedVideoFile = file
-                    currentScreen = "difficulty"
-                },
-                totalXP = totalXP,
-                currentStreak = currentStreak,
-                userName = currentUser?.name ?: "לומד"
-            )
-            
-            if (showDifficultyDialogForRandom) {
-                DifficultySelectionDialog(
-                    onDismiss = { showDifficultyDialogForRandom = false },
-                    onStart = { diff ->
-                        quizDifficulty = diff
-                        showDifficultyDialogForRandom = false
-                        
-                        val videoDir = File(context.filesDir, "videos")
-                        val allClips = mutableListOf<SubtitleClip>()
-                        linkedToRandomPool.forEach { fileName ->
-                            val videoFile = File(videoDir, fileName)
-                            val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-                            if (srtFile.exists()) {
-                                allClips.addAll(SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile)))
+                            if (allClips.isNotEmpty()) {
+                                practiceClips = allClips.shuffled()
+                                selectedVideoUri = practiceClips!![0].videoUri
+                                isQuizModeActive = true
+                                currentScreen = "player"
+                            } else {
+                                Toast.makeText(context, "קודם צריך לקשר סרטונים עם כתוביות למאגר", Toast.LENGTH_LONG).show()
                             }
                         }
+                    )
+                }
 
-                        if (allClips.isNotEmpty()) {
-                            practiceClips = allClips.shuffled()
-                            selectedVideoUri = practiceClips!![0].videoUri
-                            isQuizModeActive = true
-                            currentScreen = "player"
-                        } else {
-                            Toast.makeText(context, "קודם צריך לקשר סרטונים עם כתוביות למאגר", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                )
-            }
-
-            if (showDifficultyDialogForFavorites) {
-                DifficultySelectionDialog(
-                    onDismiss = { showDifficultyDialogForFavorites = false },
-                    onStart = { diff ->
-                        quizDifficulty = diff
-                        showDifficultyDialogForFavorites = false
-                        
-                        val videoDir = File(context.filesDir, "videos")
-                        val favClipsList = mutableListOf<SubtitleClip>()
-                        val videoFiles = videoDir.listFiles()?.filter { it.extension != "srt" } ?: emptyList()
-                        videoFiles.forEach { videoFile ->
-                            val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-                            if (srtFile.exists()) {
-                                val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
-                                clips.forEach { clip ->
-                                    val clipId = "${videoFile.name}|${clip.startTimeMs}"
-                                    if (favoriteClips.contains(clipId)) {
-                                        favClipsList.add(clip)
+                if (showDifficultyDialogForFavorites) {
+                    DifficultySelectionDialog(
+                        onDismiss = { showDifficultyDialogForFavorites = false },
+                        onStart = { diff ->
+                            quizDifficulty = diff
+                            showDifficultyDialogForFavorites = false
+                            
+                            val videoDir = File(context.filesDir, "videos")
+                            val favClipsList = mutableListOf<SubtitleClip>()
+                            val videoFiles = videoDir.listFiles()?.filter { it.extension != "srt" } ?: emptyList()
+                            videoFiles.forEach { videoFile ->
+                                val srtFile = File(videoDir, "${videoFile.nameWithoutExtension}.srt")
+                                if (srtFile.exists()) {
+                                    val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
+                                    clips.forEach { clip ->
+                                        val clipId = "${videoFile.name}|${clip.startTimeMs}"
+                                        if (favoriteClips.contains(clipId)) {
+                                            favClipsList.add(clip)
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (favClipsList.isNotEmpty()) {
-                            practiceClips = favClipsList.shuffled()
-                            selectedVideoUri = practiceClips!![0].videoUri
-                            isQuizModeActive = true
-                            currentScreen = "player"
-                        } else {
-                            Toast.makeText(context, "עדיין לא שמרת משפטים מועדפים!", Toast.LENGTH_LONG).show()
+                            if (favClipsList.isNotEmpty()) {
+                                practiceClips = favClipsList.shuffled()
+                                selectedVideoUri = practiceClips!![0].videoUri
+                                isQuizModeActive = true
+                                currentScreen = "player"
+                            } else {
+                                Toast.makeText(context, "עדיין לא שמרת משפטים מועדפים!", Toast.LENGTH_LONG).show()
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
-        }
 
-        "player" -> {
-            selectedVideoUri?.let { uri ->
-                VideoPlayerScreen(
-                    videoUri = uri,
-                    clips = practiceClips,
-                    onBack = {
-                        currentScreen = "video_list"
-                        practiceClips = null
-                        isQuizModeActive = false
+            "player" -> {
+                selectedVideoUri?.let { uri ->
+                    VideoPlayerScreen(
+                        videoUri = uri,
+                        clips = practiceClips,
+                        onBack = {
+                            currentScreen = "video_list"
+                            practiceClips = null
+                            isQuizModeActive = false
+                        },
+                        favoriteClips = favoriteClips,
+                        onToggleFavorite = { clipId ->
+                            favoriteClips = if (favoriteClips.contains(clipId)) {
+                                favoriteClips - clipId
+                            } else {
+                                favoriteClips + clipId
+                            }
+                        },
+                        isQuizMode = isQuizModeActive,
+                        difficulty = quizDifficulty,
+                        onCorrectAnswer = {
+                            val points = when (quizDifficulty) {
+                                "בינוני" -> 30
+                                "קשה" -> 40
+                                else -> 20 // קל
+                            }
+                            statsManager.addXP(points)
+                            statsManager.markActivityToday()
+                            totalXP = statsManager.getXP()
+                            currentStreak = statsManager.getStreak()
+                        },
+                        userId = currentUser?.id ?: "guest"
+                    )
+                }
+            }
+
+            "video_list" -> {
+                VideoListScreen(
+                    onVideoSelected = { uri ->
+                        selectedVideoUri = uri
+                        currentScreen = "player"
                     },
-                    favoriteClips = favoriteClips,
-                    onToggleFavorite = { clipId ->
-                        favoriteClips = if (favoriteClips.contains(clipId)) {
-                            favoriteClips - clipId
+                    onPracticeRequested = { videoFile, isQuiz ->
+                        val videoName = videoFile.nameWithoutExtension.lowercase()
+                        val videoDir = videoFile.parentFile
+                        val srtFile = videoDir?.listFiles()?.find {
+                            it.extension.lowercase() == "srt" && 
+                            it.nameWithoutExtension.lowercase() == videoName 
+                        } ?: File(videoDir, "${videoFile.nameWithoutExtension}.srt")
+
+                        if (srtFile.exists()) {
+                            val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
+                            if (clips.isNotEmpty()) {
+                                practiceClips = clips 
+                                selectedVideoUri = Uri.fromFile(videoFile)
+                                isQuizModeActive = isQuiz
+                                currentScreen = "player"
+                            } else {
+                                Toast.makeText(context, "לא הצלחתי לקרוא את המשפטים", Toast.LENGTH_SHORT).show()
+                            }
                         } else {
-                            favoriteClips + clipId
+                            Toast.makeText(context, "אין כתוביות לסרטון הזה", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    isQuizMode = isQuizModeActive,
-                    difficulty = quizDifficulty,
-                    onCorrectAnswer = {
-                        val points = when (quizDifficulty) {
-                            "בינוני" -> 30
-                            "קשה" -> 40
-                            else -> 20 // קל
+                    onBack = { currentScreen = "dashboard" },
+                    linkedVideos = linkedToRandomPool,
+                    onToggleLink = { fileName ->
+                        linkedToRandomPool = if (linkedToRandomPool.contains(fileName)) {
+                            linkedToRandomPool - fileName
+                        } else {
+                            linkedToRandomPool + fileName
                         }
-                        statsManager.addXP(points)
-                        statsManager.markActivityToday()
-                        totalXP = statsManager.getXP()
-                        currentStreak = statsManager.getStreak()
                     },
+                    onToggleDifficulty = { quizDifficulty = it },
+                    onSettingsRequested = { currentScreen = "settings" },
                     userId = currentUser?.id ?: "guest"
                 )
             }
-        }
-
-        "video_list" -> {
-            VideoListScreen(
-                onVideoSelected = { uri ->
-                    selectedVideoUri = uri
-                    currentScreen = "player"
-                },
-                onPracticeRequested = { videoFile, isQuiz ->
-                    val videoName = videoFile.nameWithoutExtension.lowercase()
-                    val videoDir = videoFile.parentFile
-                    val srtFile = videoDir?.listFiles()?.find {
-                        it.extension.lowercase() == "srt" && 
-                        it.nameWithoutExtension.lowercase() == videoName 
-                    } ?: File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-
-                    if (srtFile.exists()) {
-                        val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
-                        if (clips.isNotEmpty()) {
-                            practiceClips = clips 
-                            selectedVideoUri = Uri.fromFile(videoFile)
-                            isQuizModeActive = isQuiz
-                            currentScreen = "player"
-                        } else {
-                            Toast.makeText(context, "לא הצלחתי לקרוא את המשפטים", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        Toast.makeText(context, "אין כתוביות לסרטון הזה", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onBack = { currentScreen = "dashboard" },
-                linkedVideos = linkedToRandomPool,
-                onToggleLink = { fileName ->
-                    linkedToRandomPool = if (linkedToRandomPool.contains(fileName)) {
-                        linkedToRandomPool - fileName
-                    } else {
-                        linkedToRandomPool + fileName
-                    }
-                },
-                onToggleDifficulty = { quizDifficulty = it },
-                onSettingsRequested = { currentScreen = "settings" },
-                userId = currentUser?.id ?: "guest"
-            )
         }
     }
 }

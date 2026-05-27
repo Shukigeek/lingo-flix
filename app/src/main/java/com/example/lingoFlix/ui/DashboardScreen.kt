@@ -40,7 +40,7 @@ fun DashboardScreen(
     val context = LocalContext.current
     val videoDir = remember { File(context.filesDir, "videos") }
     val videoProjects = remember(videoDir) {
-        videoDir.listFiles()?.filter { it.extension != "srt" }?.take(5) ?: emptyList()
+        videoDir.listFiles()?.filter { it.extension != "srt" }?.take(3) ?: emptyList()
     }
     
     val xpInCurrentLevel = totalXP % 1000
@@ -73,39 +73,6 @@ fun DashboardScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // --- Top Header ---
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
-                    shadowElevation = 2.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp, vertical = 16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "ההתקדמות שלך",
-                                color = MaterialTheme.colorScheme.onBackground,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "${(userProgress * 100).toInt()}%",
-                                color = DuoGreen,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ProgressBar(progress = userProgress)
-                    }
-                }
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -135,9 +102,6 @@ fun DashboardScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
-                            TextButton(onClick = onMyVideos) {
-                                Text("ראה הכל", color = DuoBlue)
-                            }
                         }
                     }
 
@@ -164,12 +128,22 @@ fun DashboardScreen(
                     }
                     
                     item {
+                        DuoButton(
+                            text = "למאגר הסרטונים שלי",
+                            onClick = onMyVideos,
+                            color = DuoBlue,
+                            darkColor = DuoBlue.copy(alpha = 0.8f),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    item {
                         Spacer(modifier = Modifier.height(8.dp))
                         DuoButton(
                             text = "משפטים רנדומליים",
                             onClick = onRandomSentences,
-                            color = DuoBlue,
-                            darkColor = DuoBlue.copy(alpha = 0.8f),
+                            color = Color(0xFFCE93D8),
+                            darkColor = Color(0xFFBA68C8),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
