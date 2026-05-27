@@ -335,7 +335,7 @@ fun VideoPlayerScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF7F7F7))) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -343,10 +343,7 @@ fun VideoPlayerScreen(
                     useController = clips == null
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16/9f)
-                .align(Alignment.TopCenter)
+            modifier = Modifier.fillMaxSize()
         )
         
         if (confettiState.isNotEmpty()) {
@@ -396,6 +393,15 @@ fun VideoPlayerScreen(
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    IconButton(
+                        onClick = { /* הוספת פתיחת הגדרות אם נדרש */ },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
                     }
                 }
 

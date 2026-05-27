@@ -146,6 +146,9 @@ fun MainContent() {
                                 com.example.lingoFlix.util.GameLogic.Difficulty.HARD -> "קשה"
                             }
                             
+                            // Update last modified to keep it in recents
+                            file.setLastModified(System.currentTimeMillis())
+
                             val videoName = file.nameWithoutExtension.lowercase()
                             val videoDir = file.parentFile
                             val srtFile = videoDir?.listFiles()?.find {
@@ -169,6 +172,13 @@ fun MainContent() {
                                 isQuizModeActive = false
                                 currentScreen = "player"
                             }
+                        },
+                        onRegularView = {
+                            file.setLastModified(System.currentTimeMillis())
+                            selectedVideoUri = Uri.fromFile(file)
+                            practiceClips = null
+                            isQuizModeActive = false
+                            currentScreen = "player"
                         },
                         onBack = { currentScreen = "dashboard" }
                     )
@@ -305,29 +315,26 @@ fun MainContent() {
             "video_list" -> {
                 VideoListScreen(
                     onVideoSelected = { uri ->
-                        selectedVideoUri = uri
-                        currentScreen = "player"
+                        if (uri.scheme == "file") {
+                            selectedVideoFile = File(uri.path!!)
+                            currentScreen = "difficulty"
+                        } else {
+                            selectedVideoUri = uri
+                            practiceClips = null
+                            isQuizModeActive = false
+                            currentScreen = "player"
+                        }
                     },
                     onPracticeRequested = { videoFile, isQuiz ->
-                        val videoName = videoFile.nameWithoutExtension.lowercase()
-                        val videoDir = videoFile.parentFile
-                        val srtFile = videoDir?.listFiles()?.find {
-                            it.extension.lowercase() == "srt" && 
-                            it.nameWithoutExtension.lowercase() == videoName 
-                        } ?: File(videoDir, "${videoFile.nameWithoutExtension}.srt")
-
-                        if (srtFile.exists()) {
-                            val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(videoFile))
-                            if (clips.isNotEmpty()) {
-                                practiceClips = clips 
-                                selectedVideoUri = Uri.fromFile(videoFile)
-                                isQuizModeActive = isQuiz
-                                currentScreen = "player"
-                            } else {
-                                Toast.makeText(context, "לא הצלחתי לקרוא את המשפטים", Toast.LENGTH_SHORT).show()
-                            }
+                        if (isQuiz) {
+                            selectedVideoFile = videoFile
+                            currentScreen = "difficulty"
                         } else {
-                            Toast.makeText(context, "אין כתוביות לסרטון הזה", Toast.LENGTH_SHORT).show()
+                            videoFile.setLastModified(System.currentTimeMillis())
+                            selectedVideoUri = Uri.fromFile(videoFile)
+                            practiceClips = null
+                            isQuizModeActive = false
+                            currentScreen = "player"
                         }
                     },
                     onBack = { currentScreen = "dashboard" },

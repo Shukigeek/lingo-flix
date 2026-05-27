@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.lingoFlix.ui.components.DuoButton
 import com.example.lingoFlix.ui.components.DuoGray
 import com.example.lingoFlix.util.GameLogic
 
@@ -28,6 +29,7 @@ import com.example.lingoFlix.util.GameLogic
 fun DifficultyScreen(
     videoTitle: String,
     onDifficultySelected: (GameLogic.Difficulty) -> Unit,
+    onRegularView: () -> Unit = {},
     onBack: () -> Unit
 ) {
     Column(
@@ -82,6 +84,16 @@ fun DifficultyScreen(
         )
         
         Spacer(modifier = Modifier.height(32.dp))
+
+        DuoButton(
+            text = "צפייה רגילה (ללא Quiz)",
+            onClick = onRegularView,
+            color = Color(0xFF1CB0F6),
+            darkColor = Color(0xFF1CB0F6).copy(alpha = 0.8f),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
         
         TextButton(onClick = onBack) {
             Text("ביטול", color = Color.Gray, fontSize = 16.sp)

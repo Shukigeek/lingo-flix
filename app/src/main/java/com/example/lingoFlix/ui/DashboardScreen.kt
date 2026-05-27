@@ -40,7 +40,9 @@ fun DashboardScreen(
     val context = LocalContext.current
     val videoDir = remember { File(context.filesDir, "videos") }
     val videoProjects = remember(videoDir) {
-        videoDir.listFiles()?.filter { it.extension != "srt" }?.take(3) ?: emptyList()
+        videoDir.listFiles()?.filter { it.extension != "srt" }
+            ?.sortedByDescending { it.lastModified() }
+            ?.take(3) ?: emptyList()
     }
     
     val xpInCurrentLevel = totalXP % 1000
