@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.lingoFlix.ui.DashboardScreen
+import com.example.lingoFlix.ui.DifficultyScreen
 import com.example.lingoFlix.ui.theme.LingoFlixTheme
 import com.example.lingoFlix.data.UserStatsManager
 import com.example.lingoFlix.model.UserProfile
@@ -65,6 +66,7 @@ fun MainContent() {
     var totalXP by remember { mutableIntStateOf(statsManager.getXP()) }
     var currentStreak by remember { mutableIntStateOf(statsManager.getStreak()) }
     
+    var selectedVideoFile by remember { mutableStateOf<File?>(null) }
     var selectedVideoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var practiceClips by rememberSaveable { mutableStateOf<List<SubtitleClip>?>(null) }
     var isQuizModeActive by rememberSaveable { mutableStateOf(false) }
@@ -106,6 +108,39 @@ fun MainContent() {
     var showDifficultyDialogForFavorites by remember { mutableStateOf(false) }
 
     when (currentScreen) {
+        "difficulty" -> {
+            selectedVideoFile?.let { file ->
+                DifficultyScreen(
+                    videoTitle = file.name,
+                    onDifficultySelected = { difficulty ->
+                        quizDifficulty = when(difficulty) {
+                            com.example.lingoFlix.util.GameLogic.Difficulty.EASY -> "קל"
+                            com.example.lingoFlix.util.GameLogic.Difficulty.MEDIUM -> "בינוני"
+                            com.example.lingoFlix.util.GameLogic.Difficulty.HARD -> "קשה"
+                        }
+                        
+                        val videoName = file.nameWithoutExtension.lowercase()
+                        val videoDir = file.parentFile
+                        val srtFile = videoDir?.listFiles()?.find {
+                            it.extension.lowercase() == "srt" && 
+                            it.nameWithoutExtension.lowercase() == videoName 
+                        } ?: File(videoDir, "${file.nameWithoutExtension}.srt")
+
+                        if (srtFile.exists()) {
+                            val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(file))
+                            if (clips.isNotEmpty()) {
+                                practiceClips = clips 
+                                selectedVideoUri = Uri.fromFile(file)
+                                isQuizModeActive = true
+                                currentScreen = "player"
+                            }
+                        }
+                    },
+                    onBack = { currentScreen = "dashboard" }
+                )
+            }
+        }
+
         "settings" -> {
             SettingsScreen(
                 currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
@@ -123,6 +158,10 @@ fun MainContent() {
                 onUploadVideo = { pickVideoLauncher.launch("video/*") },
                 onRandomSentences = { showDifficultyDialogForRandom = true },
                 onFavorites = { showDifficultyDialogForFavorites = true },
+                onVideoSelected = { file ->
+                    selectedVideoFile = file
+                    currentScreen = "difficulty"
+                },
                 totalXP = totalXP,
                 currentStreak = currentStreak,
                 userName = currentUser?.name ?: "לומד"
