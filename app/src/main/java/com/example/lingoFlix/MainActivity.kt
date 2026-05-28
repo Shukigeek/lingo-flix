@@ -97,10 +97,10 @@ class MainActivity : ComponentActivity() {
     var currentScreen by rememberSaveable { mutableStateOf("dashboard") }
     var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
     
-    var linkedToRandomPool by remember { 
+    var linkedToRandomPool by rememberSaveable { 
         mutableStateOf(sharedPrefs.getStringSet("linked_videos", emptySet()) ?: emptySet()) 
     }
-    var favoriteClips by remember { 
+    var favoriteClips by rememberSaveable {
         mutableStateOf(sharedPrefs.getStringSet("favorite_clips", emptySet()) ?: emptySet()) 
     }
     
