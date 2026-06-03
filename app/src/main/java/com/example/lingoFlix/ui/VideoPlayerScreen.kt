@@ -2,6 +2,7 @@ package com.example.lingoFlix.ui
 
 import android.content.Intent
 import android.speech.RecognizerIntent
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Context
@@ -49,6 +50,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.ui.components.*
+import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SrtParser
 import com.example.lingoFlix.utils.SubtitleGenerator
 import kotlinx.coroutines.delay
@@ -182,8 +184,12 @@ fun VideoPlayerScreen(
         val targetUri = if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex].videoUri else videoUri
         if (targetUri.scheme == "file") {
             val videoFile = File(targetUri.path!!)
-            val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
-            if (srtFile.exists()) SrtParser.detectSubtitleLanguage(srtFile) else "אנגלית"
+            val srtFile = FileUtils.findBestSrtForVideo(videoFile)
+            if (srtFile != null && srtFile.exists()) {
+                val lang = SrtParser.detectSubtitleLanguage(srtFile)
+                Log.d("VideoPlayerScreen", "Detected language for ${videoFile.name}: $lang")
+                lang
+            } else "אנגלית"
         } else "אנגלית"
     }
 
@@ -229,28 +235,48 @@ fun VideoPlayerScreen(
     val allClipsForThisVideo = remember(videoUri, subtitlesGeneratedTrigger) {
         if (videoUri.scheme == "file") {
             val videoFile = File(videoUri.path!!)
-            val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
-            if (srtFile.exists()) SrtParser.parseSrtFile(srtFile, videoUri) else emptyList()
+            val srtFile = FileUtils.findBestSrtForVideo(videoFile)
+            if (srtFile != null && srtFile.exists()) SrtParser.parseSrtFile(srtFile, videoUri) else emptyList()
         } else emptyList()
     }
 
     val exoPlayer = remember(context) {
         ExoPlayer.Builder(context).build().apply {
             playWhenReady = true
+            addListener(object : androidx.media3.common.Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    Log.e("VideoPlayerScreen", "ExoPlayer Error: ${error.message}", error)
+                }
+                override fun onPlaybackStateChanged(state: Int) {
+                    val stateStr = when(state) {
+                        androidx.media3.common.Player.STATE_IDLE -> "IDLE"
+                        androidx.media3.common.Player.STATE_BUFFERING -> "BUFFERING"
+                        androidx.media3.common.Player.STATE_READY -> "READY"
+                        androidx.media3.common.Player.STATE_ENDED -> "ENDED"
+                        else -> "UNKNOWN"
+                    }
+                    Log.d("VideoPlayerScreen", "Playback State Changed: $stateStr")
+                }
+            })
         }
     }
     
     // Handle Video Change
     LaunchedEffect(videoUri, clips, currentClipIndex) {
+        Log.d("VideoPlayerScreen", "LaunchedEffect triggered with videoUri: $videoUri")
         val targetUri = if (clips != null && currentClipIndex < clips.size) {
             clips[currentClipIndex].videoUri
         } else {
             videoUri
         }
+        Log.d("VideoPlayerScreen", "Target URI: $targetUri")
 
         val currentMediaUri = exoPlayer.currentMediaItem?.localConfiguration?.uri
         
+        Log.d("VideoPlayerScreen", "Current Media URI: $currentMediaUri")
+
         if (currentMediaUri != targetUri) {
+            Log.d("VideoPlayerScreen", "URI Mismatch. Loading new media...")
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
             
@@ -260,8 +286,9 @@ fun VideoPlayerScreen(
             if (clips == null) {
                 if (targetUri.scheme == "file") {
                     val videoFile = File(targetUri.path!!)
-                    val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
-                    if (srtFile.exists()) {
+                    val srtFile = FileUtils.findBestSrtForVideo(videoFile)
+                    if (srtFile != null && srtFile.exists()) {
+                        Log.d("VideoPlayerScreen", "Adding subtitles from: ${srtFile.absolutePath}")
                         val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(srtFile))
                             .setMimeType(MimeTypes.APPLICATION_SUBRIP)
                             .setLanguage("he")
@@ -281,10 +308,16 @@ fun VideoPlayerScreen(
                 .build()
             
             if (clips != null && currentClipIndex < clips.size) {
+                Log.d("VideoPlayerScreen", "Seeking to startTimeMs: ${clips[currentClipIndex].startTimeMs}")
                 exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
             }
         } else if (clips != null && currentClipIndex < clips.size) {
-            exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
+            val currentPos = exoPlayer.currentPosition
+            val clipStart = clips[currentClipIndex].startTimeMs
+            if (Math.abs(currentPos - clipStart) > 1000) { 
+                Log.d("VideoPlayerScreen", "Same URI, but seeking to clip start: $clipStart")
+                exoPlayer.seekTo(clipStart)
+            }
         }
 
         exoPlayer.play()
@@ -322,13 +355,16 @@ fun VideoPlayerScreen(
         activity?.let {
             val window = it.window
             val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            
             if (isFullScreen) {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 controller.hide(WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                controller.show(WindowInsetsCompat.Type.systemBars())
+                // Respect immersive mode: hide navigation, show status
+                controller.hide(WindowInsetsCompat.Type.navigationBars())
+                controller.show(WindowInsetsCompat.Type.statusBars())
             }
         }
     }
@@ -346,7 +382,10 @@ fun VideoPlayerScreen(
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             val window = activity?.window
             if (window != null) {
-                WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.hide(WindowInsetsCompat.Type.navigationBars())
+                controller.show(WindowInsetsCompat.Type.statusBars())
             }
         }
     }

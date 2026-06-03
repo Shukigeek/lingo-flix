@@ -8,7 +8,8 @@ import com.example.lingoFlix.model.Question
 import com.example.lingoFlix.model.SubtitleSegment
 import com.example.lingoFlix.util.GameLogic
 import java.io.File
-import com.example.lingoFlix.util.SrtParser
+import com.example.lingoFlix.utils.SrtParser
+import android.net.Uri
 
 class ExerciseViewModel : ViewModel() {
 
@@ -39,7 +40,9 @@ class ExerciseViewModel : ViewModel() {
     private var allSegments = listOf<SubtitleSegment>()
 
     fun loadProject(srtFile: File) {
-        allSegments = SrtParser.parse(srtFile)
+        allSegments = SrtParser.parseSrtFile(srtFile, Uri.EMPTY).mapIndexed { index, clip ->
+            SubtitleSegment(index, clip.startTimeMs, clip.endTimeMs, clip.text)
+        }
         totalQuestions = allSegments.size
         _questionIndex.value = 0
         _hearts.value = 3

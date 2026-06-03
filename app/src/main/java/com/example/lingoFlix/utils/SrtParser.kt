@@ -7,13 +7,20 @@ import java.io.File
 
 object SrtParser {
     fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
+        Log.d("SrtParser", "Parsing SRT file: ${srtFile.absolutePath}")
         val clips = mutableListOf<SubtitleClip>()
         try {
+            if (!srtFile.exists()) {
+                Log.e("SrtParser", "File does not exist!")
+                return emptyList()
+            }
             val bytes = srtFile.readBytes()
             val encoding = detectEncoding(bytes)
+            Log.d("SrtParser", "Detected encoding: ${encoding.name()}")
             val content = String(bytes, encoding)
             
             val lines = content.lines().map { it.trim() }
+            Log.d("SrtParser", "Total lines to process: ${lines.size}")
             var i = 0
             while (i < lines.size) {
                 val line = lines[i]
@@ -40,6 +47,7 @@ object SrtParser {
                 }
                 i++
             }
+            Log.d("SrtParser", "Successfully parsed ${clips.size} clips")
         } catch (e: Exception) {
             Log.e("SrtParser", "Error parsing SRT", e)
         }
@@ -51,40 +59,49 @@ object SrtParser {
         if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) return Charsets.UTF_16BE
         if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) return Charsets.UTF_16LE
         
+        if (isUtf8(bytes)) return Charsets.UTF_8
+
         var hebrewChars = 0
         var spanishChars = 0
-        var utf8Sequences = 0
         
-        var i = 0
-        while (i < bytes.size) {
-            val b = bytes[i].toInt() and 0xFF
-            // Hebrew range in Windows-1255
-            if (b in 0xE0..0xFA) hebrewChars++
-            // Common Spanish characters in ISO-8859-1 / Windows-1252
-            if (b == 0xF1 || b == 0xD1 || b == 0xE1 || b == 0xE9 || b == 0xED || b == 0xF3 || b == 0xFA || b == 0xFC || b == 0xBF || b == 0xA1 || 
-                b == 0xC1 || b == 0xC9 || b == 0xCD || b == 0xD3 || b == 0xDA || b == 0xDC) {
+        for (b in bytes) {
+            val i = b.toInt() and 0xFF
+            if (i in 0xE0..0xFA) hebrewChars++
+            if (i == 0xF1 || i == 0xD1 || i == 0xE1 || i == 0xE9 || i == 0xED || i == 0xF3 || i == 0xFA || i == 0xFC) {
                 spanishChars++
             }
-            if (b in 0xC2..0xDF) {
-                if (i + 1 < bytes.size && (bytes[i+1].toInt() and 0xFF) in 0x80..0xBF) {
-                    utf8Sequences++
-                    i++
-                }
-            } else if (b in 0xE0..0xEF) {
-                if (i + 2 < bytes.size && (bytes[i+1].toInt() and 0xFF) in 0x80..0xBF && (bytes[i+2].toInt() and 0xFF) in 0x80..0xBF) {
-                    utf8Sequences++
-                    i += 2
-                }
-            }
-            i++
         }
         
         return when {
-            utf8Sequences > 0 -> Charsets.UTF_8
             hebrewChars > spanishChars && hebrewChars > 5 -> java.nio.charset.Charset.forName("windows-1255")
-            spanishChars > 0 -> java.nio.charset.Charset.forName("windows-1252") // Spanish/Western
+            spanishChars > 0 -> java.nio.charset.Charset.forName("windows-1252")
             else -> Charsets.UTF_8
         }
+    }
+
+    private fun isUtf8(bytes: ByteArray): Boolean {
+        var i = 0
+        var hasMultibyte = false
+        while (i < bytes.size) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b <= 0x7F) {
+                i++
+                continue
+            }
+            hasMultibyte = true
+            val count = when {
+                b in 0xC2..0xDF -> 1
+                b in 0xE0..0xEF -> 2
+                b in 0xF0..0xF4 -> 3
+                else -> return false
+            }
+            if (i + count >= bytes.size) return false
+            for (j in 1..count) {
+                if ((bytes[i + j].toInt() and 0xC0) != 0x80) return false
+            }
+            i += count + 1
+        }
+        return hasMultibyte // If no multibyte found, it's ASCII (which is valid UTF-8)
     }
 
     private fun parseSrtTime(timeStr: String): Long {

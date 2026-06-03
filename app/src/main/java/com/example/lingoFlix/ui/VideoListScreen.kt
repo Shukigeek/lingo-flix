@@ -2,6 +2,7 @@ package com.example.lingoFlix.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -144,6 +145,7 @@ fun VideoListScreen(
     ) { uri: Uri? ->
         if (uri != null && videoToImportSubtitles != null) {
             val videoFile = videoToImportSubtitles!!
+            // Automatically use the video's name for the SRT file to ensure they match
             val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
             try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
@@ -151,7 +153,7 @@ fun VideoListScreen(
                         input.copyTo(output)
                     }
                 }
-                Toast.makeText(context, "כתוביות יובאו בהצלחה!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "כתוביות יובאו ושמן שונה להתאמה לסרטון!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(context, "שגיאה בייבוא הכתוביות", Toast.LENGTH_SHORT).show()
             }
@@ -198,6 +200,7 @@ fun VideoListScreen(
                                 if (file.isDirectory) {
                                     currentDir = file
                                 } else {
+                                    Log.d("VideoListScreen", "Video selected: ${file.name}")
                                     onVideoSelected(Uri.fromFile(file))
                                 }
                             },
@@ -540,7 +543,7 @@ fun VideoItem(
 ) {
     val isDirectory = file.isDirectory
     val duration = remember(file) { if (isDirectory) null else FileUtils.getVideoDuration(context, file) }
-    val srtFile = remember(file) { if (isDirectory) null else File(file.parentFile, "${file.nameWithoutExtension}.srt") }
+    val srtFile = remember(file) { if (isDirectory) null else FileUtils.findBestSrtForVideo(file) }
     val hasSubtitles = srtFile?.exists() ?: false
     var showMenu by remember { mutableStateOf(false) }
 
@@ -702,6 +705,17 @@ fun VideoItem(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        if (isDirectory) {
+                            DropdownMenuItem(
+                                text = { Text(if (isLinked) "הסר תיקייה מהמאגר הרנדומלי" else "הוסף תיקייה למאגר הרנדומלי") },
+                                leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onToggleLink()
+                                }
+                            )
+                            HorizontalDivider()
+                        }
                         if (hasSubtitles && !isDirectory) {
                             DropdownMenuItem(
                                 text = { Text("למד ממשפטים (לפי סדר)", color = MaterialTheme.colorScheme.primary) },

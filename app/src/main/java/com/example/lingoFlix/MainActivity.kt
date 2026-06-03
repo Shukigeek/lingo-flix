@@ -1,6 +1,7 @@
 package com.example.lingoFlix
 
 import android.net.Uri
+import android.util.Log
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.DifficultyScreen
@@ -63,7 +65,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
     private fun setImmersiveMode(window: android.view.Window) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -78,6 +79,14 @@ class MainActivity : ComponentActivity() {
     fun MainContent(activity: ComponentActivity) {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
+
+        // Saver for Set<String> to work correctly with rememberSaveable
+        val setSaver = remember {
+            Saver<MutableState<Set<String>>, ArrayList<String>>(
+                save = { ArrayList(it.value.toList()) },
+                restore = { mutableStateOf(it.toSet()) }
+            )
+        }
 
         // Maintain immersive mode on resume
         DisposableEffect(lifecycleOwner) {
@@ -97,11 +106,11 @@ class MainActivity : ComponentActivity() {
     var currentScreen by rememberSaveable { mutableStateOf("dashboard") }
     var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
     
-    var linkedToRandomPool by rememberSaveable { 
-        mutableStateOf(sharedPrefs.getStringSet("linked_videos", emptySet()) ?: emptySet()) 
+    var linkedToRandomPool by rememberSaveable(saver = setSaver) { 
+        mutableStateOf(sharedPrefs.getStringSet("linked_videos", emptySet())?.toSet() ?: emptySet()) 
     }
-    var favoriteClips by rememberSaveable {
-        mutableStateOf(sharedPrefs.getStringSet("favorite_clips", emptySet()) ?: emptySet()) 
+    var favoriteClips by rememberSaveable(saver = setSaver) {
+        mutableStateOf(sharedPrefs.getStringSet("favorite_clips", emptySet())?.toSet() ?: emptySet()) 
     }
     
     var totalXP by remember { mutableIntStateOf(statsManager.getXP()) }
@@ -114,26 +123,86 @@ class MainActivity : ComponentActivity() {
     var isRandomModeActive by rememberSaveable { mutableStateOf(false) }
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
 
+    // Re-apply immersive mode when screen changes to ensure consistency
+    LaunchedEffect(currentScreen) {
+        setImmersiveMode(activity.window)
+    }
+
     LaunchedEffect(linkedToRandomPool) {
-        sharedPrefs.edit().putStringSet("linked_videos", linkedToRandomPool.toSet()).apply()
+        sharedPrefs.edit().putStringSet("linked_videos", HashSet(linkedToRandomPool)).apply()
     }
     LaunchedEffect(favoriteClips) {
-        sharedPrefs.edit().putStringSet("favorite_clips", favoriteClips.toSet()).apply()
+        sharedPrefs.edit().putStringSet("favorite_clips", HashSet(favoriteClips)).apply()
     }
 
     val pickVideoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val originalName = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
-            val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, originalName)
-            if (savedFile != null) {
-                Toast.makeText(context, "סרטון $originalName נשמר!", Toast.LENGTH_SHORT).show()
-                // Force refresh if we are in video list
-                if (currentScreen == "video_list") {
-                    currentScreen = "dashboard"
-                    currentScreen = "video_list"
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val videoUris = uris.filter { uri ->
+                val type = context.contentResolver.getType(uri)
+                val name = FileUtils.getFileName(context, uri) ?: ""
+                type?.startsWith("video/") == true || 
+                listOf("mp4", "mkv", "avi", "mov", "webm").any { name.endsWith(".$it", ignoreCase = true) }
+            }
+            val srtUris = uris.filter { uri ->
+                val type = context.contentResolver.getType(uri)
+                val name = FileUtils.getFileName(context, uri) ?: ""
+                type?.contains("subrip") == true || 
+                type?.contains("application/octet-stream") == true || 
+                type?.contains("text/plain") == true ||
+                name.endsWith(".srt", ignoreCase = true)
+            }
+
+            if (videoUris.isEmpty() && uris.size == 1) {
+                // If user picked one file and it doesn't have a video mime type, 
+                // but they meant it to be a video 
+                val uri = uris[0]
+                val name = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
+                val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, name)
+                if (savedFile != null) {
+                    Toast.makeText(context, "סרטון $name נשמר!", Toast.LENGTH_SHORT).show()
                 }
+            } else {
+                videoUris.forEach { vUri ->
+                    val vName = FileUtils.getFileName(context, vUri) ?: "video_${System.currentTimeMillis()}.mp4"
+                    val savedVideo = FileUtils.saveVideoToInternalStorage(context, vUri, vName)
+                    
+                    if (savedVideo != null) {
+                        // Automatically link to random pool
+                        linkedToRandomPool = linkedToRandomPool + vName
+
+                        // Look for a matching SRT in the selected URIs
+                        val vBase = vName.substringBeforeLast(".")
+                        val matchingSrt = srtUris.find { sUri ->
+                            val sName = FileUtils.getFileName(context, sUri) ?: ""
+                            sName.contains(vBase, ignoreCase = true) || (vBase.isNotEmpty() && sName.substringBeforeLast(".").contains(vBase, ignoreCase = true))
+                        } ?: if (srtUris.size == 1 && videoUris.size == 1) srtUris[0] else null
+
+                        matchingSrt?.let { sUri ->
+                            val sName = FileUtils.getFileName(context, sUri) ?: "$vBase.srt"
+                            FileUtils.saveSubtitleToInternalStorage(context, sUri, sName, vName)
+                            Toast.makeText(context, "סרטון וכתוביות עבור $vBase נשמרו!", Toast.LENGTH_SHORT).show()
+                        } ?: run {
+                            Toast.makeText(context, "סרטון $vName נשמר!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                
+                // If user picked only SRTs
+                if (videoUris.isEmpty() && srtUris.isNotEmpty()) {
+                    srtUris.forEach { sUri ->
+                        val sName = FileUtils.getFileName(context, sUri) ?: "subtitle_${System.currentTimeMillis()}.srt"
+                        FileUtils.saveSubtitleToInternalStorage(context, sUri, sName)
+                    }
+                    Toast.makeText(context, "כתוביות נשמרו!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            // Force refresh if we are in video list
+            if (currentScreen == "video_list") {
+                currentScreen = "dashboard"
+                currentScreen = "video_list"
             }
         }
     }
@@ -167,7 +236,13 @@ class MainActivity : ComponentActivity() {
             alpha = 0.5f
         )
 
-        when (currentScreen) {
+        // Wrapper for content to handle system bars padding
+        // statusBarsPadding() ensures content is below the status bar
+        // navigationBarsPadding() is not used here because we want immersive (transient) navigation
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()) {
+            when (currentScreen) {
             "difficulty" -> {
                 selectedVideoFile?.let { file ->
                     DifficultyScreen(
@@ -182,20 +257,18 @@ class MainActivity : ComponentActivity() {
                             // Update last modified to keep it in recents
                             file.setLastModified(System.currentTimeMillis())
 
-                            val videoName = file.nameWithoutExtension.lowercase()
-                            val videoDir = file.parentFile
-                            val srtFile = videoDir?.listFiles()?.find {
-                                it.extension.lowercase() == "srt" && 
-                                it.nameWithoutExtension.lowercase() == videoName 
-                            } ?: File(videoDir, "${file.nameWithoutExtension}.srt")
+                            val srtFile = FileUtils.findBestSrtForVideo(file)
+                            Log.d("MainActivity", "Found SRT file: ${srtFile?.absolutePath}")
 
-                            if (srtFile.exists()) {
+                            if (srtFile != null && srtFile.exists()) {
                                 val clips = SrtParser.parseSrtFile(srtFile, Uri.fromFile(file))
+                                Log.d("MainActivity", "Parsed ${clips.size} clips")
                                 if (clips.isNotEmpty()) {
                                     practiceClips = clips 
                                     selectedVideoUri = Uri.fromFile(file)
                                     isQuizModeActive = true
                                     currentScreen = "player"
+                                    Log.d("MainActivity", "Switching to player screen")
                                 } else {
                                     Toast.makeText(context, "לא נמצאו כתוביות תקינות", Toast.LENGTH_SHORT).show()
                                 }
@@ -232,7 +305,7 @@ class MainActivity : ComponentActivity() {
             "dashboard" -> {
                 DashboardScreen(
                     onMyVideos = { currentScreen = "video_list" },
-                    onUploadVideo = { pickVideoLauncher.launch("video/*") },
+                    onUploadVideo = { pickVideoLauncher.launch(arrayOf("video/*", "application/x-subrip", "text/plain", "application/octet-stream")) },
                     onRandomSentences = { showDifficultyDialogForRandom = true },
                     onFavorites = { showDifficultyDialogForFavorites = true },
                     onVideoSelected = { file ->
@@ -254,31 +327,61 @@ class MainActivity : ComponentActivity() {
                             val videoDir = File(context.filesDir, "videos")
                             val allClips = mutableListOf<SubtitleClip>()
                             
-                            // Recursively find all SRT files in the video directory
+                            // Create a map of ALL available videos for discovery
+                            val allVideos = mutableListOf<File>()
                             videoDir.walkTopDown().forEach { file ->
-                                if (!file.isDirectory && file.extension.lowercase() == "srt") {
-                                    // Try to find the corresponding video file with common extensions
-                                    val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
-                                    val videoFile = videoExtensions.map { ext -> 
-                                        File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
-                                    }.firstOrNull { it.exists() }
-                                    
-                                    if (videoFile != null && (linkedToRandomPool.contains(videoFile.name) || 
-                                        linkedToRandomPool.contains(file.nameWithoutExtension))) {
-                                        val videoUri = Uri.fromFile(videoFile)
-                                        allClips.addAll(SrtParser.parseSrtFile(file, videoUri))
+                                if (!file.isDirectory && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "webm")) {
+                                    allVideos.add(file)
+                                }
+                            }
+
+                            var matchedToVideo = 0
+                            var linkedAndMatched = 0
+                            
+                            // For each video, find its best matching SRT
+                            allVideos.forEach { videoFile ->
+                                val relativePath = videoFile.absolutePath.substringAfter(videoDir.absolutePath).trim(File.separatorChar)
+                                val pathParts = relativePath.split(File.separatorChar)
+                                
+                                val isLinked = linkedToRandomPool.any { linkedName ->
+                                    videoFile.name.equals(linkedName, ignoreCase = true) || 
+                                    videoFile.nameWithoutExtension.equals(linkedName, ignoreCase = true) ||
+                                    pathParts.any { it.equals(linkedName, ignoreCase = true) }
+                                }
+
+                                // Fallback: if pool is empty, consider all videos linked for now to help the user
+                                val shouldInclude = if (linkedToRandomPool.isEmpty()) true else isLinked
+
+                                if (shouldInclude) {
+                                    val bestSrt = FileUtils.findBestSrtForVideo(videoFile)
+                                    if (bestSrt != null) {
+                                        matchedToVideo++
+                                        val clips = SrtParser.parseSrtFile(bestSrt, Uri.fromFile(videoFile))
+                                        if (clips.isNotEmpty()) {
+                                            linkedAndMatched++
+                                            allClips.addAll(clips)
+                                        }
                                     }
                                 }
                             }
 
                             if (allClips.isNotEmpty()) {
+                                val msg = if (linkedToRandomPool.isEmpty()) 
+                                    "מציג משפטים מכל הסרטונים (לא קישרת סרטונים ספציפיים)" 
+                                    else "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                 practiceClips = allClips.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
                                 isRandomModeActive = true
                                 currentScreen = "player"
                             } else {
-                                Toast.makeText(context, "קודם צריך לקשר סרטונים עם כתוביות למאגר", Toast.LENGTH_LONG).show()
+                                val msg = when {
+                                    allVideos.isEmpty() -> "לא נמצאו סרטונים בתיקייה. נא להעלות סרטונים קודם."
+                                    matchedToVideo == 0 -> "לא נמצאו כתוביות (SRT) תואמות לסרטונים."
+                                    else -> "לא הצלחנו לקרוא משפטים מהכתוביות. ודא שהן בפורמט SRT תקין."
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
                         }
                     )
@@ -316,6 +419,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (favClipsList.isNotEmpty()) {
+                                Toast.makeText(context, "נמצאו ${favClipsList.size} משפטים מועדפים", Toast.LENGTH_SHORT).show()
                                 practiceClips = favClipsList.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
@@ -395,17 +499,30 @@ class MainActivity : ComponentActivity() {
                     onBack = { currentScreen = "dashboard" },
                     linkedVideos = linkedToRandomPool,
                     onToggleLink = { fileName ->
-                        linkedToRandomPool = if (linkedToRandomPool.contains(fileName)) {
-                            linkedToRandomPool - fileName
-                        } else {
+                        val isNowLinked = !linkedToRandomPool.contains(fileName)
+                        linkedToRandomPool = if (isNowLinked) {
                             linkedToRandomPool + fileName
+                        } else {
+                            linkedToRandomPool - fileName
                         }
+                        val msg = if (isNowLinked) "נוסף למאגר הרנדומלי" else "הוסר מהמאגר הרנדומלי"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     },
                     onToggleDifficulty = { quizDifficulty = it },
                     onSettingsRequested = { currentScreen = "settings" },
+                    favoriteClips = favoriteClips,
+                    onToggleFavorite = { clipId ->
+                        favoriteClips = if (favoriteClips.contains(clipId)) {
+                            favoriteClips - clipId
+                        } else {
+                            favoriteClips + clipId
+                        }
+                    },
                     userId = currentUser?.id ?: "guest"
                 )
             }
         }
     }
+}
+}
 }
