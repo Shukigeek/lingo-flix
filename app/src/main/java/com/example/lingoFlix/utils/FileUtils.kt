@@ -24,12 +24,26 @@ object FileUtils {
             cursor?.use {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (nameIndex != -1) name = it.getString(nameIndex)
+                    if (nameIndex != -1) {
+                        name = it.getString(nameIndex)
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.e("FileUtils", "Error getting file name", e)
+            Log.e("FileUtils", "Error getting file name from cursor", e)
         }
+
+        // If name is null or just numbers, try to get it from URI path
+        if (name == null || name!!.substringBeforeLast(".").all { it.isDigit() }) {
+            val path = uri.path
+            if (path != null) {
+                val lastSegment = path.substringAfterLast("/")
+                if (lastSegment.isNotBlank() && lastSegment.contains(".")) {
+                    name = lastSegment
+                }
+            }
+        }
+
         return name
     }
 

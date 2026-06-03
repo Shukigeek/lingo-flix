@@ -80,11 +80,17 @@ class MainActivity : ComponentActivity() {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
 
-        // Saver for Set<String> to work correctly with rememberSaveable
+        // Saver for Set<String> and List<String>
         val setSaver = remember {
             Saver<MutableState<Set<String>>, ArrayList<String>>(
                 save = { ArrayList(it.value.toList()) },
                 restore = { mutableStateOf(it.toSet()) }
+            )
+        }
+        val listSaver = remember {
+            Saver<MutableState<List<String>>, ArrayList<String>>(
+                save = { ArrayList(it.value) },
+                restore = { mutableStateOf(it.toList()) }
             )
         }
 
@@ -103,7 +109,21 @@ class MainActivity : ComponentActivity() {
     val statsManager = remember { UserStatsManager(context) }
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", android.content.Context.MODE_PRIVATE) }
     
-    var currentScreen by rememberSaveable { mutableStateOf("dashboard") }
+    var navigationStack by rememberSaveable(saver = listSaver) { mutableStateOf(listOf("dashboard")) }
+    val currentScreen = navigationStack.last()
+    
+    fun navigateTo(screen: String) {
+        if (navigationStack.last() != screen) {
+            navigationStack = navigationStack + screen
+        }
+    }
+    
+    fun navigateBack() {
+        if (navigationStack.size > 1) {
+            navigationStack = navigationStack.dropLast(1)
+        }
+    }
+
     var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
     
     var linkedToRandomPool by rememberSaveable(saver = setSaver) { 
@@ -201,25 +221,18 @@ class MainActivity : ComponentActivity() {
 
             // Force refresh if we are in video list
             if (currentScreen == "video_list") {
-                currentScreen = "dashboard"
-                currentScreen = "video_list"
+                navigateBack()
+                navigateTo("video_list")
             }
         }
     }
 
-    BackHandler(enabled = currentScreen != "dashboard") {
-        when (currentScreen) {
-            "player" -> {
-                currentScreen = "video_list"
-                practiceClips = null
-                isQuizModeActive = false
-            }
-            "difficulty" -> {
-                currentScreen = "dashboard"
-            }
-            "video_list", "settings", "favorites" -> {
-                currentScreen = "dashboard"
-            }
+    BackHandler(enabled = navigationStack.size > 1) {
+        navigateBack()
+        if (currentScreen == "player") {
+            practiceClips = null
+            isQuizModeActive = false
+            isRandomModeActive = false
         }
     }
 
@@ -267,7 +280,7 @@ class MainActivity : ComponentActivity() {
                                     practiceClips = clips 
                                     selectedVideoUri = Uri.fromFile(file)
                                     isQuizModeActive = true
-                                    currentScreen = "player"
+                                    navigateTo("player")
                                     Log.d("MainActivity", "Switching to player screen")
                                 } else {
                                     Toast.makeText(context, "לא נמצאו כתוביות תקינות", Toast.LENGTH_SHORT).show()
@@ -276,7 +289,7 @@ class MainActivity : ComponentActivity() {
                                 // Just play the video if no SRT
                                 selectedVideoUri = Uri.fromFile(file)
                                 isQuizModeActive = false
-                                currentScreen = "player"
+                                navigateTo("player")
                             }
                         },
                         onRegularView = {
@@ -284,9 +297,9 @@ class MainActivity : ComponentActivity() {
                             selectedVideoUri = Uri.fromFile(file)
                             practiceClips = null
                             isQuizModeActive = false
-                            currentScreen = "player"
+                            navigateTo("player")
                         },
-                        onBack = { currentScreen = "dashboard" }
+                        onBack = { navigateBack() }
                     )
                 }
             }
@@ -296,21 +309,21 @@ class MainActivity : ComponentActivity() {
                     currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
                     onSaveApiKey = { newKey ->
                         currentUser?.let { SecurityUtils.saveUserApiKey(context, it.id, newKey) }
-                        currentScreen = "dashboard"
+                        navigateBack()
                     },
-                    onBack = { currentScreen = "dashboard" }
+                    onBack = { navigateBack() }
                 )
             }
 
             "dashboard" -> {
                 DashboardScreen(
-                    onMyVideos = { currentScreen = "video_list" },
+                    onMyVideos = { navigateTo("video_list") },
                     onUploadVideo = { pickVideoLauncher.launch(arrayOf("video/*", "application/x-subrip", "text/plain", "application/octet-stream")) },
                     onRandomSentences = { showDifficultyDialogForRandom = true },
                     onFavorites = { showDifficultyDialogForFavorites = true },
                     onVideoSelected = { file ->
                         selectedVideoFile = file
-                        currentScreen = "difficulty"
+                        navigateTo("difficulty")
                     },
                     totalXP = totalXP,
                     currentStreak = currentStreak,
@@ -327,13 +340,20 @@ class MainActivity : ComponentActivity() {
                             val videoDir = File(context.filesDir, "videos")
                             val allClips = mutableListOf<SubtitleClip>()
                             
-                            // Create a map of ALL available videos for discovery
+                            // Create a list of ALL available videos for discovery
                             val allVideos = mutableListOf<File>()
+                            
+                            // 1. Collect ALL video files recursively
+                            val discoveredVideos = mutableListOf<File>()
                             videoDir.walkTopDown().forEach { file ->
                                 if (!file.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { file.name.endsWith(".$it", ignoreCase = true) }) {
-                                    allVideos.add(file)
+                                    discoveredVideos.add(file)
                                 }
                             }
+
+                            // 2. Filter videos that are explicitly linked in the preferences
+                            // We match by name since linkedToRandomPool stores file names
+                            allVideos.addAll(discoveredVideos.filter { linkedToRandomPool.contains(it.name) })
 
                             var videosWithSrt = 0
                             var linkedAndMatched = 0
@@ -352,17 +372,18 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (allClips.isNotEmpty()) {
-                                Toast.makeText(context, "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים שנבחרו", Toast.LENGTH_SHORT).show()
                                 practiceClips = allClips.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
                                 isRandomModeActive = true
-                                currentScreen = "player"
+                                navigateTo("player")
                             } else {
                                 val msg = when {
-                                    allVideos.isEmpty() -> "לא נמצאו סרטונים בתיקייה. נא להעלות סרטונים וכתוביות קודם."
-                                    videosWithSrt == 0 -> "נמצאו סרטונים, אך לאף אחד מהם אין קובץ כתוביות (SRT) באותו שם."
-                                    else -> "נמצאו כתוביות, אך לא הצלחנו לקרוא מהן משפטים. ודא שהן תקינות."
+                                    linkedToRandomPool.isEmpty() -> "לא נבחרו סרטונים למאגר הרנדומלי. נא לסמן סרטונים בסימן הקישור (Link) ברשימת הסרטונים."
+                                    allVideos.isEmpty() -> "הסרטונים שסימנת לא נמצאו בתיקייה."
+                                    videosWithSrt == 0 -> "נמצאו סרטונים, אך לאף אחד מהם אין קובץ כתוביות (SRT) תואם."
+                                    else -> "נמצאו כתוביות, אך לא הצלחנו לקרוא מהן משפטים."
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
@@ -407,7 +428,7 @@ class MainActivity : ComponentActivity() {
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
                                 isRandomModeActive = true
-                                currentScreen = "player"
+                                navigateTo("player")
                             } else {
                                 Toast.makeText(context, "עדיין לא שמרת משפטים מועדפים!", Toast.LENGTH_LONG).show()
                             }
@@ -422,7 +443,7 @@ class MainActivity : ComponentActivity() {
                         videoUri = uri,
                         clips = practiceClips,
                         onBack = {
-                            currentScreen = "video_list"
+                            navigateBack()
                             practiceClips = null
                             isQuizModeActive = false
                             isRandomModeActive = false
@@ -459,27 +480,27 @@ class MainActivity : ComponentActivity() {
                     onVideoSelected = { uri ->
                         if (uri.scheme == "file") {
                             selectedVideoFile = File(uri.path!!)
-                            currentScreen = "difficulty"
+                            navigateTo("difficulty")
                         } else {
                             selectedVideoUri = uri
                             practiceClips = null
                             isQuizModeActive = false
-                            currentScreen = "player"
+                            navigateTo("player")
                         }
                     },
                     onPracticeRequested = { videoFile, isQuiz ->
                         if (isQuiz) {
                             selectedVideoFile = videoFile
-                            currentScreen = "difficulty"
+                            navigateTo("difficulty")
                         } else {
                             videoFile.setLastModified(System.currentTimeMillis())
                             selectedVideoUri = Uri.fromFile(videoFile)
                             practiceClips = null
                             isQuizModeActive = false
-                            currentScreen = "player"
+                            navigateTo("player")
                         }
                     },
-                    onBack = { currentScreen = "dashboard" },
+                    onBack = { navigateBack() },
                     linkedVideos = linkedToRandomPool,
                     onToggleLink = { fileName ->
                         val isNowLinked = !linkedToRandomPool.contains(fileName)
@@ -492,7 +513,7 @@ class MainActivity : ComponentActivity() {
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     },
                     onToggleDifficulty = { quizDifficulty = it },
-                    onSettingsRequested = { currentScreen = "settings" },
+                    onSettingsRequested = { navigateTo("settings") },
                     favoriteClips = favoriteClips,
                     onToggleFavorite = { clipId ->
                         favoriteClips = if (favoriteClips.contains(clipId)) {

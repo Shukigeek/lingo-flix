@@ -16,6 +16,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -179,6 +181,13 @@ fun VideoPlayerScreen(
     
     var showInfoMessage by remember { mutableStateOf<String?>(null) }
     
+    // Subtitle Styling states
+    val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", Context.MODE_PRIVATE) }
+    var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 22f)) }
+    var subtitleColorHex by remember { mutableStateOf(sharedPrefs.getString("sub_color", "#FFFFFF") ?: "#FFFFFF") }
+    var subtitleIsBold by remember { mutableStateOf(sharedPrefs.getBoolean("sub_is_bold", true)) }
+    var showStyleDialog by remember { mutableStateOf(false) }
+
     // Detected language for the video
     val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger, currentClipIndex, clips) {
         val targetUri = if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex].videoUri else videoUri
@@ -196,7 +205,6 @@ fun VideoPlayerScreen(
     val preferredAudioLang = when (detectedLanguage) {
         "עברית" -> "he"
         "ספרדית" -> "es"
-        "רוסית" -> "ru"
         "ערבית" -> "ar"
         "צרפתית" -> "fr"
         "גרמנית" -> "de"
@@ -242,6 +250,7 @@ fun VideoPlayerScreen(
 
     val exoPlayer = remember(context) {
         ExoPlayer.Builder(context).build().apply {
+            setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
             playWhenReady = true
             addListener(object : androidx.media3.common.Player.Listener {
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -327,10 +336,11 @@ fun VideoPlayerScreen(
     if (clips != null) {
         LaunchedEffect(Unit) {
             while (true) {
-                delay(100)
+                delay(50)
                 if (currentClipIndex < clips.size) {
                     val clip = clips[currentClipIndex]
-                    if (exoPlayer.currentPosition >= clip.endTimeMs) {
+                    // Add 300ms buffer to ensure Hebrew words are not cut off
+                    if (exoPlayer.currentPosition >= clip.endTimeMs + 300L) {
                         exoPlayer.pause()
                     }
                 }
@@ -388,6 +398,55 @@ fun VideoPlayerScreen(
                 controller.show(WindowInsetsCompat.Type.statusBars())
             }
         }
+    }
+
+    if (showStyleDialog) {
+        AlertDialog(
+            onDismissRequest = { showStyleDialog = false },
+            title = { Text("עיצוב כתוביות") },
+            text = {
+                Column {
+                    Text("גודל טקסט: ${subtitleFontSize.toInt()}")
+                    Slider(
+                        value = subtitleFontSize,
+                        onValueChange = { subtitleFontSize = it },
+                        valueRange = 14f..44f
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = subtitleIsBold, onCheckedChange = { subtitleIsBold = it })
+                        Text("טקסט מודגש (Bold)")
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("צבע טקסט:")
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        listOf("#FFFFFF", "#FFFF00", "#00FF00", "#FF0000", "#00FFFF", "#FF00FF").forEach { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(android.graphics.Color.parseColor(color)), CircleShape)
+                                    .border(if (subtitleColorHex == color) 2.dp else 0.dp, Color.Gray, CircleShape)
+                                    .clickable { subtitleColorHex = color }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    sharedPrefs.edit()
+                        .putFloat("sub_font_size", subtitleFontSize)
+                        .putString("sub_color", subtitleColorHex)
+                        .putBoolean("sub_is_bold", subtitleIsBold)
+                        .apply()
+                    showStyleDialog = false
+                }) {
+                    Text("שמור")
+                }
+            }
+        )
     }
 
     if (showXRay) {
@@ -451,6 +510,15 @@ fun VideoPlayerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { showStyleDialog = true },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(Icons.Default.Palette, contentDescription = "Subtitle Style", tint = Color.White)
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
@@ -579,6 +647,7 @@ fun VideoPlayerScreen(
                 ) {
                     val text = currentClip.text
                     val isRtl = detectedLanguage == "עברית"
+                    val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
                     
                     Column(modifier = Modifier.padding(20.dp)) {
                         CompositionLocalProvider(
@@ -595,13 +664,17 @@ fun VideoPlayerScreen(
                                             Text(
                                                 text = if (isChecked) word else "____",
                                                 color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
+                                                fontSize = subtitleFontSize.sp,
+                                                fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                 style = MaterialTheme.typography.titleMedium,
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
                                         } else {
                                             Text(
                                                 text = word,
-                                                color = Color.White,
+                                                color = textColor,
+                                                fontSize = subtitleFontSize.sp,
+                                                fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                 style = MaterialTheme.typography.titleMedium,
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
@@ -611,7 +684,9 @@ fun VideoPlayerScreen(
                             } else {
                                 Text(
                                     text = text,
-                                    color = Color.White,
+                                    color = textColor,
+                                    fontSize = subtitleFontSize.sp,
+                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                     modifier = Modifier.fillMaxWidth(),
                                     style = MaterialTheme.typography.titleMedium,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

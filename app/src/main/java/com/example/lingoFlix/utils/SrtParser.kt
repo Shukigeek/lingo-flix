@@ -75,22 +75,19 @@ object SrtParser {
         if (isUtf8(bytes)) return Charsets.UTF_8
 
         var hebrewCount = 0
-        var cyrillicCount = 0
         var arabicCount = 0
         var latinCount = 0
         
         for (b in bytes) {
             val i = b.toInt() and 0xFF
             if (i in 0xE0..0xFA) hebrewCount++ // Windows-1255
-            if (i in 0xC0..0xFF) cyrillicCount++ // Windows-1251
             if (i in 0xC1..0xFE) arabicCount++ // Windows-1256
             if (i in 0xA0..0xFF) latinCount++ // Windows-1252
         }
         
         return when {
-            hebrewCount > 10 && hebrewCount > cyrillicCount -> java.nio.charset.Charset.forName("windows-1255")
-            cyrillicCount > 10 && cyrillicCount > hebrewCount -> java.nio.charset.Charset.forName("windows-1251")
-            arabicCount > 10 && arabicCount > hebrewCount -> java.nio.charset.Charset.forName("windows-1256")
+            hebrewCount > 5 -> java.nio.charset.Charset.forName("windows-1255")
+            arabicCount > 10 -> java.nio.charset.Charset.forName("windows-1256")
             latinCount > 0 -> java.nio.charset.Charset.forName("windows-1252")
             else -> Charsets.UTF_8
         }
@@ -137,7 +134,6 @@ object SrtParser {
             val content = String(bytes, encoding)
             
             if (content.any { it in '\u0590'..'\u05FF' }) return "עברית"
-            if (content.any { it in '\u0400'..'\u04FF' }) return "רוסית"
             if (content.any { it in '\u0600'..'\u06FF' }) return "ערבית"
             if (content.any { it in '\u3040'..'\u309F' || it in '\u30A0'..'\u30FF' }) return "יפנית"
             if (content.any { it in '\u4E00'..'\u9FFF' }) return "סינית"
@@ -163,7 +159,6 @@ object SrtParser {
             "עברית" -> "🇮🇱"
             "אנגלית" -> "🇺🇸"
             "ספרדית" -> "🇪🇸"
-            "רוסית" -> "🇷🇺"
             "ערבית" -> "🇸🇦"
             "צרפתית" -> "🇫🇷"
             "גרמנית" -> "🇩🇪"

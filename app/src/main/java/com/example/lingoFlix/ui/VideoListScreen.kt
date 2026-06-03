@@ -179,7 +179,7 @@ fun VideoListScreen(
                         Icon(Icons.Default.CreateNewFolder, contentDescription = "New Folder")
                     }
                     IconButton(onClick = onSettingsRequested) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Tune, contentDescription = "Settings")
                     }
                 }
             }
@@ -565,24 +565,6 @@ fun VideoItem(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (hasSubtitles && !isDirectory) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(80.dp)
-                        .background(Color(0xFF58CC02)) // DuoGreen
-                        .clickable { 
-                            offsetX = 0f
-                            onPractice() 
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.School, contentDescription = null, tint = Color.White)
-                        Text("תרגל", color = Color.White, fontSize = 12.sp)
-                    }
-                }
-            }
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -629,7 +611,7 @@ fun VideoItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    if (isDirectory) Icons.Default.FolderSpecial else Icons.Default.PlayCircle, 
+                    if (isDirectory) Icons.Default.Folder else Icons.Default.PlayCircle,
                     null, 
                     tint = if (isDirectory) Color(0xFFFFD600) else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
@@ -666,7 +648,6 @@ fun VideoItem(
                                 color = when (subLang) {
                                     "עברית" -> Color(0xFFE8F5E9)
                                     "ספרדית" -> Color(0xFFFFF3E0)
-                                    "רוסית" -> Color(0xFFF3E5F5)
                                     "ערבית" -> Color(0xFFFFFDE7)
                                     else -> Color(0xFFE3F2FD)
                                 },
@@ -679,7 +660,6 @@ fun VideoItem(
                                     color = when (subLang) {
                                         "עברית" -> Color(0xFF2E7D32)
                                         "ספרדית" -> Color(0xFFE65100)
-                                        "רוסית" -> Color(0xFF7B1FA2)
                                         "ערבית" -> Color(0xFFFBC02D)
                                         else -> Color(0xFF1976D2)
                                     }
@@ -689,10 +669,9 @@ fun VideoItem(
                     }
                 }
                 
-                // Settings icon for menu
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = { if (file.isDirectory) onMove() else showMenu = true }) {
                     Icon(
-                        Icons.Default.Settings,
+                        if (file.isDirectory) Icons.Default.DriveFileMove else Icons.Default.MoreVert,
                         contentDescription = "Menu",
                         tint = Color.Gray,
                         modifier = Modifier.size(24.dp)
@@ -705,26 +684,7 @@ fun VideoItem(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        if (isDirectory) {
-                            DropdownMenuItem(
-                                text = { Text(if (isLinked) "הסר תיקייה מהמאגר הרנדומלי" else "הוסף תיקייה למאגר הרנדומלי") },
-                                leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) },
-                                onClick = {
-                                    showMenu = false
-                                    onToggleLink()
-                                }
-                            )
-                            HorizontalDivider()
-                        }
-                        if (hasSubtitles && !isDirectory) {
-                            DropdownMenuItem(
-                                text = { Text("למד ממשפטים (לפי סדר)", color = MaterialTheme.colorScheme.primary) },
-                                leadingIcon = { Icon(Icons.Default.School, null, tint = MaterialTheme.colorScheme.primary) },
-                                onClick = {
-                                    showMenu = false
-                                    onPractice()
-                                }
-                            )
+                        if (!isDirectory) {
                             DropdownMenuItem(
                                 text = { Text(if (isLinked) "הסר מהמאגר הרנדומלי" else "הוסף למאגר הרנדומלי") },
                                 leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) },
@@ -743,15 +703,25 @@ fun VideoItem(
                                 onRename()
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text("העבר לתיקייה") },
-                            leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
-                            onClick = {
-                                showMenu = false
-                                onMove()
-                            }
-                        )
-                        if (!isDirectory) {
+                        if (isDirectory) {
+                            DropdownMenuItem(
+                                text = { Text("העבר תיקייה") },
+                                leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onMove()
+                                }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("העבר לתיקייה") },
+                                leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onMove()
+                                }
+                            )
+                            HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("ייצור כתוביות AI (אוטומטי)", color = MaterialTheme.colorScheme.primary) },
                                 leadingIcon = { Icon(Icons.Default.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary) },
@@ -776,7 +746,6 @@ fun VideoItem(
                                     onImportSubtitles()
                                 }
                             )
-                            HorizontalDivider()
                         }
                     }
                 }
