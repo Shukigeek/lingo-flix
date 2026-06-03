@@ -336,6 +336,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             var videosWithSrt = 0
+                            var linkedAndMatched = 0
                             
                             // For each video, find its best matching SRT
                             allVideos.forEach { videoFile ->
