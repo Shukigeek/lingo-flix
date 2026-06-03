@@ -177,4 +177,23 @@ object FileUtils {
             it.nameWithoutExtension.contains(videoFile.nameWithoutExtension, ignoreCase = true)
         }
     }
+
+    /**
+     * Ensures the SRT file is in UTF-8 for ExoPlayer, which can struggle with other encodings.
+     * Returns a temporary file if conversion was needed.
+     */
+    fun getUtf8SrtFile(context: Context, srtFile: File): File {
+        return try {
+            val bytes = srtFile.readBytes()
+            val encoding = SrtParser.detectEncoding(bytes)
+            if (encoding == Charsets.UTF_8) return srtFile
+            
+            val content = String(bytes, encoding)
+            val tempFile = File(context.cacheDir, "temp_sub_${srtFile.nameWithoutExtension}.srt")
+            tempFile.writeText(content, Charsets.UTF_8)
+            tempFile
+        } catch (e: Exception) {
+            srtFile
+        }
+    }
 }

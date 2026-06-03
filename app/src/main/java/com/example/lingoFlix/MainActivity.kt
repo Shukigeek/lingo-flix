@@ -190,8 +190,10 @@ class MainActivity : ComponentActivity() {
                     val savedVideo = FileUtils.saveVideoToInternalStorage(context, vUri, vName)
                     
                     if (savedVideo != null) {
-                        // Automatically link to random pool
-                        linkedToRandomPool = linkedToRandomPool + vName
+                        // Automatically link to random pool using relative path
+                        val videoDir = File(context.filesDir, "videos")
+                        val relativePath = savedVideo.relativeTo(videoDir).path
+                        linkedToRandomPool = linkedToRandomPool + relativePath
 
                         // Look for a matching SRT in the selected URIs
                         val vBase = vName.substringBeforeLast(".")
@@ -354,10 +356,10 @@ class MainActivity : ComponentActivity() {
                             }
 
                             // 2. Filter videos that are explicitly linked in the preferences
-                            // We match by name since linkedToRandomPool stores file names
-                            val linkedNames = linkedToRandomPool
+                            // We match by relative path since linkedToRandomPool now stores relative paths
+                            val linkedPaths = linkedToRandomPool
                             
-                            var filteredVideos = discoveredVideos.filter { linkedNames.contains(it.name) }
+                            var filteredVideos = discoveredVideos.filter { linkedPaths.contains(it.relativeTo(videoDir).path) }
                             
                             // Fallback: If nothing is linked, use all videos with SRTs to avoid empty pool
                             if (filteredVideos.isEmpty()) {
@@ -515,12 +517,12 @@ class MainActivity : ComponentActivity() {
                     },
                     onBack = { navigateBack() },
                     linkedVideos = linkedToRandomPool,
-                    onToggleLink = { fileName ->
-                        val isNowLinked = !linkedToRandomPool.contains(fileName)
+                    onToggleLink = { relativePath ->
+                        val isNowLinked = !linkedToRandomPool.contains(relativePath)
                         linkedToRandomPool = if (isNowLinked) {
-                            linkedToRandomPool + fileName
+                            linkedToRandomPool + relativePath
                         } else {
-                            linkedToRandomPool - fileName
+                            linkedToRandomPool - relativePath
                         }
                         val msg = if (isNowLinked) "נוסף למאגר הרנדומלי" else "הוסר מהמאגר הרנדומלי"
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()

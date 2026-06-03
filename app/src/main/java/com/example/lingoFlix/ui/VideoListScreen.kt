@@ -211,8 +211,8 @@ fun VideoListScreen(
                                 }
                             },
                             onPractice = { videoForQuiz = file },
-                            isLinked = linkedVideos.contains(file.name),
-                            onToggleLink = { onToggleLink(file.name) },
+                            isLinked = linkedVideos.contains(file.relativeTo(rootVideoDir).path),
+                            onToggleLink = { onToggleLink(file.relativeTo(rootVideoDir).path) },
                             onRename = { 
                                 videoToRename = file
                                 newFileName = file.name

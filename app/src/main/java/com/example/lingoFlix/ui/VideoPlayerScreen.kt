@@ -15,10 +15,12 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -35,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -306,9 +309,11 @@ fun VideoPlayerScreen(
                     val srtFile = FileUtils.findBestSrtForVideo(videoFile)
                     if (srtFile != null && srtFile.exists()) {
                         Log.d("VideoPlayerScreen", "Adding subtitles from: ${srtFile.absolutePath}")
-                        val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(srtFile))
+                        // Ensure SRT is UTF-8 for ExoPlayer
+                        val utf8Srt = FileUtils.getUtf8SrtFile(context, srtFile)
+                        val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(utf8Srt))
                             .setMimeType(MimeTypes.APPLICATION_SUBRIP)
-                            .setLanguage("he")
+                            .setLanguage(if (detectedLanguage == "עברית") "he" else "en")
                             .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
                             .build()
                         mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
@@ -688,7 +693,9 @@ fun VideoPlayerScreen(
                                                 color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
                                                 fontSize = subtitleFontSize.sp,
                                                 fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                style = MaterialTheme.typography.titleMedium,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                                ),
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
                                         } else {
@@ -698,7 +705,9 @@ fun VideoPlayerScreen(
                                                 fontSize = subtitleFontSize.sp,
                                                 fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                 fontFamily = currentFontFamily,
-                                                style = MaterialTheme.typography.titleMedium,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                                ),
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
                                         }
@@ -712,7 +721,9 @@ fun VideoPlayerScreen(
                                     fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                     fontFamily = currentFontFamily,
                                     modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                    ),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }

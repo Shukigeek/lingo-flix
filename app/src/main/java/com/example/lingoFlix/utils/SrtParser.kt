@@ -66,7 +66,7 @@ object SrtParser {
             .trim()
     }
 
-    private fun detectEncoding(bytes: ByteArray): java.nio.charset.Charset {
+    fun detectEncoding(bytes: ByteArray): java.nio.charset.Charset {
         if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) return Charsets.UTF_8
         if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) return Charsets.UTF_16BE
         if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) return Charsets.UTF_16LE
@@ -80,14 +80,14 @@ object SrtParser {
         
         for (b in bytes) {
             val i = b.toInt() and 0xFF
-            if (i in 0xE0..0xFA) hebrewCount++ // Windows-1255
-            if (i in 0xC1..0xFE) arabicCount++ // Windows-1256
-            if (i in 0xA0..0xFF) latinCount++ // Windows-1252
+            if (i in 0xE0..0xFA) hebrewCount++ // Windows-1255 (Hebrew)
+            if (i in 0xC1..0xFE) arabicCount++ // Windows-1256 (Arabic)
+            if (i in 0xA0..0xFF) latinCount++ // Windows-1252 (Latin)
         }
         
         return when {
-            hebrewCount > 5 -> java.nio.charset.Charset.forName("windows-1255")
-            arabicCount > 10 -> java.nio.charset.Charset.forName("windows-1256")
+            hebrewCount > 2 -> java.nio.charset.Charset.forName("windows-1255")
+            arabicCount > 5 -> java.nio.charset.Charset.forName("windows-1256")
             latinCount > 0 -> java.nio.charset.Charset.forName("windows-1252")
             else -> Charsets.UTF_8
         }
