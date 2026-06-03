@@ -48,7 +48,9 @@ fun VideoListScreen(
     onSettingsRequested: () -> Unit,
     favoriteClips: Set<String> = emptySet(),
     onToggleFavorite: (String) -> Unit = {},
-    userId: String = "guest"
+    userId: String = "guest",
+    initialDir: File? = null,
+    onDirChanged: (File) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -56,7 +58,11 @@ fun VideoListScreen(
     val rootVideoDir = remember { File(context.filesDir, "videos") }
     if (!rootVideoDir.exists()) rootVideoDir.mkdirs()
     
-    var currentDir by remember { mutableStateOf(rootVideoDir) }
+    var currentDir by remember { mutableStateOf(initialDir ?: rootVideoDir) }
+    
+    LaunchedEffect(currentDir) {
+        onDirChanged(currentDir)
+    }
     
     val items = remember(currentDir) {
         currentDir.listFiles()?.filter { it.isDirectory || it.extension != "srt" }
@@ -179,7 +185,7 @@ fun VideoListScreen(
                         Icon(Icons.Default.CreateNewFolder, contentDescription = "New Folder")
                     }
                     IconButton(onClick = onSettingsRequested) {
-                        Icon(Icons.Default.Tune, contentDescription = "Settings")
+                        Icon(Icons.Default.AutoStories, contentDescription = "Settings")
                     }
                 }
             }
@@ -497,7 +503,7 @@ fun VideoListScreen(
     if (videoToRename != null) {
         AlertDialog(
             onDismissRequest = { videoToRename = null },
-            title = { Text("ערוך שם קובץ") },
+            title = { Text(if (videoToRename!!.isDirectory) "ערוך שם תיקייה" else "ערוך שם קובץ") },
             text = {
                 TextField(
                     value = newFileName,
@@ -671,7 +677,7 @@ fun VideoItem(
                 
                 IconButton(onClick = { if (file.isDirectory) onMove() else showMenu = true }) {
                     Icon(
-                        if (file.isDirectory) Icons.Default.DriveFileMove else Icons.Default.MoreVert,
+                        if (file.isDirectory) Icons.Default.SubdirectoryArrowLeft else Icons.Default.MoreVert,
                         contentDescription = "Menu",
                         tint = Color.Gray,
                         modifier = Modifier.size(24.dp)

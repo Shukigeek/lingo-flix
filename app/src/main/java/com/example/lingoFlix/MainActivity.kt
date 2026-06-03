@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
     var currentStreak by remember { mutableIntStateOf(statsManager.getStreak()) }
     
     var selectedVideoFile by remember { mutableStateOf<File?>(null) }
+    var currentVideoListDir by remember { mutableStateOf<File?>(null) }
     var selectedVideoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var practiceClips by rememberSaveable { mutableStateOf<List<SubtitleClip>?>(null) }
     var isQuizModeActive by rememberSaveable { mutableStateOf(false) }
@@ -228,8 +229,9 @@ class MainActivity : ComponentActivity() {
     }
 
     BackHandler(enabled = navigationStack.size > 1) {
+        val lastScreen = navigationStack.last()
         navigateBack()
-        if (currentScreen == "player") {
+        if (lastScreen == "player") {
             practiceClips = null
             isQuizModeActive = false
             isRandomModeActive = false
@@ -353,7 +355,16 @@ class MainActivity : ComponentActivity() {
 
                             // 2. Filter videos that are explicitly linked in the preferences
                             // We match by name since linkedToRandomPool stores file names
-                            allVideos.addAll(discoveredVideos.filter { linkedToRandomPool.contains(it.name) })
+                            val linkedNames = linkedToRandomPool
+                            
+                            var filteredVideos = discoveredVideos.filter { linkedNames.contains(it.name) }
+                            
+                            // Fallback: If nothing is linked, use all videos with SRTs to avoid empty pool
+                            if (filteredVideos.isEmpty()) {
+                                filteredVideos = discoveredVideos.filter { FileUtils.findBestSrtForVideo(it)?.exists() == true }
+                            }
+                            
+                            allVideos.addAll(filteredVideos)
 
                             var videosWithSrt = 0
                             var linkedAndMatched = 0
@@ -372,7 +383,8 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (allClips.isNotEmpty()) {
-                                Toast.makeText(context, "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים שנבחרו", Toast.LENGTH_SHORT).show()
+                                val linkedMsg = if (linkedToRandomPool.isEmpty()) "מציג משפטים מכל הסרטונים (כי המאגר הקיים ריק)" else "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים"
+                                Toast.makeText(context, linkedMsg, Toast.LENGTH_SHORT).show()
                                 practiceClips = allClips.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
@@ -380,7 +392,8 @@ class MainActivity : ComponentActivity() {
                                 navigateTo("player")
                             } else {
                                 val msg = when {
-                                    linkedToRandomPool.isEmpty() -> "לא נבחרו סרטונים למאגר הרנדומלי. נא לסמן סרטונים בסימן הקישור (Link) ברשימת הסרטונים."
+                                    discoveredVideos.isEmpty() -> "לא נמצאו סרטונים בתיקייה. העלה סרטון כדי להתחיל!"
+                                    linkedToRandomPool.isEmpty() -> "אין סרטונים עם כתוביות במאגר. אנא וודא שיש קבצי SRT לסרטונים שלך."
                                     allVideos.isEmpty() -> "הסרטונים שסימנת לא נמצאו בתיקייה."
                                     videosWithSrt == 0 -> "נמצאו סרטונים, אך לאף אחד מהם אין קובץ כתוביות (SRT) תואם."
                                     else -> "נמצאו כתוביות, אך לא הצלחנו לקרוא מהן משפטים."
@@ -522,7 +535,9 @@ class MainActivity : ComponentActivity() {
                             favoriteClips + clipId
                         }
                     },
-                    userId = currentUser?.id ?: "guest"
+                    userId = currentUser?.id ?: "guest",
+                    initialDir = currentVideoListDir,
+                    onDirChanged = { currentVideoListDir = it }
                 )
             }
         }

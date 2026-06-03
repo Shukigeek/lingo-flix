@@ -25,7 +25,10 @@ object FileUtils {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1) {
-                        name = it.getString(nameIndex)
+                        val displayName = it.getString(nameIndex)
+                        if (!displayName.isNullOrBlank()) {
+                            name = displayName
+                        }
                     }
                 }
             }
@@ -33,13 +36,23 @@ object FileUtils {
             Log.e("FileUtils", "Error getting file name from cursor", e)
         }
 
-        // If name is null or just numbers, try to get it from URI path
-        if (name == null || name!!.substringBeforeLast(".").all { it.isDigit() }) {
+        // If name is still null or just a number (common for some providers), try to get it from URI path
+        if (name == null || name!!.matches(Regex("\\d+"))) {
             val path = uri.path
             if (path != null) {
                 val lastSegment = path.substringAfterLast("/")
                 if (lastSegment.isNotBlank() && lastSegment.contains(".")) {
                     name = lastSegment
+                }
+            }
+        }
+        
+        // Final fallback: if it's still null or just a number, use the last path segment if it looks like a name
+        val finalName = name
+        if (finalName == null || finalName.matches(Regex("\\d+"))) {
+            uri.lastPathSegment?.let { 
+                if (it.isNotBlank() && !it.matches(Regex("\\d+"))) {
+                    name = it
                 }
             }
         }

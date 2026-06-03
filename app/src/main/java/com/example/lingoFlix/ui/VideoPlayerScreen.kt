@@ -183,10 +183,18 @@ fun VideoPlayerScreen(
     
     // Subtitle Styling states
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", Context.MODE_PRIVATE) }
-    var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 22f)) }
+    var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 28f)) }
     var subtitleColorHex by remember { mutableStateOf(sharedPrefs.getString("sub_color", "#FFFFFF") ?: "#FFFFFF") }
     var subtitleIsBold by remember { mutableStateOf(sharedPrefs.getBoolean("sub_is_bold", true)) }
+    var subtitleFontFamily by remember { mutableStateOf(sharedPrefs.getString("sub_font_family", "SansSerif") ?: "SansSerif") }
     var showStyleDialog by remember { mutableStateOf(false) }
+
+    val currentFontFamily = when(subtitleFontFamily) {
+        "Serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+        "Monospace" -> androidx.compose.ui.text.font.FontFamily.Monospace
+        "Cursive" -> androidx.compose.ui.text.font.FontFamily.Cursive
+        else -> androidx.compose.ui.text.font.FontFamily.SansSerif
+    }
 
     // Detected language for the video
     val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger, currentClipIndex, clips) {
@@ -317,8 +325,11 @@ fun VideoPlayerScreen(
                 .build()
             
             if (clips != null && currentClipIndex < clips.size) {
-                Log.d("VideoPlayerScreen", "Seeking to startTimeMs: ${clips[currentClipIndex].startTimeMs}")
-                exoPlayer.seekTo(clips[currentClipIndex].startTimeMs)
+                // Larger seek back for Hebrew/RTL languages to ensure context
+                val seekBack = if (detectedLanguage == "עברית") 500L else 200L
+                val seekPos = (clips[currentClipIndex].startTimeMs - seekBack).coerceAtLeast(0L)
+                Log.d("VideoPlayerScreen", "Seeking to: $seekPos (start was ${clips[currentClipIndex].startTimeMs})")
+                exoPlayer.seekTo(seekPos)
             }
         } else if (clips != null && currentClipIndex < clips.size) {
             val currentPos = exoPlayer.currentPosition
@@ -339,8 +350,9 @@ fun VideoPlayerScreen(
                 delay(50)
                 if (currentClipIndex < clips.size) {
                     val clip = clips[currentClipIndex]
-                    // Add 300ms buffer to ensure Hebrew words are not cut off
-                    if (exoPlayer.currentPosition >= clip.endTimeMs + 300L) {
+                    // Increased buffer for Hebrew to 1000ms to avoid cutting off words
+                    val endBuffer = if (detectedLanguage == "עברית") 1000L else 500L
+                    if (exoPlayer.currentPosition >= clip.endTimeMs + endBuffer) {
                         exoPlayer.pause()
                     }
                 }
@@ -405,13 +417,26 @@ fun VideoPlayerScreen(
             onDismissRequest = { showStyleDialog = false },
             title = { Text("עיצוב כתוביות") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text("גודל טקסט: ${subtitleFontSize.toInt()}")
                     Slider(
                         value = subtitleFontSize,
                         onValueChange = { subtitleFontSize = it },
-                        valueRange = 14f..44f
+                        valueRange = 16f..60f
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("סוג גופן:")
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        listOf("SansSerif", "Serif", "Monospace", "Cursive").forEach { font ->
+                            FilterChip(
+                                selected = subtitleFontFamily == font,
+                                onClick = { subtitleFontFamily = font },
+                                label = { Text(font, fontSize = 10.sp) }
+                            )
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -421,13 +446,14 @@ fun VideoPlayerScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("צבע טקסט:")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        listOf("#FFFFFF", "#FFFF00", "#00FF00", "#FF0000", "#00FFFF", "#FF00FF").forEach { color ->
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        listOf("#FFFFFF", "#FFFF00", "#00FF00", "#FF0000", "#00FFFF", "#FF00FF", "#FFA500", "#A9A9A9").forEach { color ->
                             Box(
                                 modifier = Modifier
+                                    .padding(4.dp)
                                     .size(40.dp)
                                     .background(Color(android.graphics.Color.parseColor(color)), CircleShape)
-                                    .border(if (subtitleColorHex == color) 2.dp else 0.dp, Color.Gray, CircleShape)
+                                    .border(if (subtitleColorHex == color) 3.dp else 1.dp, if (subtitleColorHex == color) MaterialTheme.colorScheme.primary else Color.LightGray, CircleShape)
                                     .clickable { subtitleColorHex = color }
                             )
                         }
@@ -440,6 +466,7 @@ fun VideoPlayerScreen(
                         .putFloat("sub_font_size", subtitleFontSize)
                         .putString("sub_color", subtitleColorHex)
                         .putBoolean("sub_is_bold", subtitleIsBold)
+                        .putString("sub_font_family", subtitleFontFamily)
                         .apply()
                     showStyleDialog = false
                 }) {
@@ -528,12 +555,7 @@ fun VideoPlayerScreen(
                     
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    IconButton(
-                        onClick = { /* הוספת פתיחת הגדרות אם נדרש */ },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
-                    }
+                    // Removed redundant settings icon as requested
                 }
 
                 IconButton(
@@ -675,6 +697,7 @@ fun VideoPlayerScreen(
                                                 color = textColor,
                                                 fontSize = subtitleFontSize.sp,
                                                 fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                                fontFamily = currentFontFamily,
                                                 style = MaterialTheme.typography.titleMedium,
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
@@ -687,6 +710,7 @@ fun VideoPlayerScreen(
                                     color = textColor,
                                     fontSize = subtitleFontSize.sp,
                                     fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                    fontFamily = currentFontFamily,
                                     modifier = Modifier.fillMaxWidth(),
                                     style = MaterialTheme.typography.titleMedium,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
