@@ -199,8 +199,13 @@ fun VideoPlayerScreen(
         else -> androidx.compose.ui.text.font.FontFamily.SansSerif
     }
 
-    // Detected language for the video
-    val detectedLanguage = remember(videoUri, subtitlesGeneratedTrigger, currentClipIndex, clips) {
+    // Detected language for the video/clip
+    val detectedLanguage = remember(videoUri, clips, currentClipIndex, subtitlesGeneratedTrigger) {
+        // Priority 1: Check the current clip text if it's Hebrew
+        val currentText = if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex].text else ""
+        if (currentText.any { it in '\u0590'..'\u05FF' }) return@remember "עברית"
+        
+        // Priority 2: Check the SRT file
         val targetUri = if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex].videoUri else videoUri
         if (targetUri.scheme == "file") {
             val videoFile = File(targetUri.path!!)
@@ -281,67 +286,62 @@ fun VideoPlayerScreen(
         }
     }
     
-    // Handle Video Change
+    // Handle Video Change and Seeking
     LaunchedEffect(videoUri, clips, currentClipIndex) {
-        Log.d("VideoPlayerScreen", "LaunchedEffect triggered with videoUri: $videoUri")
         val targetUri = if (clips != null && currentClipIndex < clips.size) {
             clips[currentClipIndex].videoUri
         } else {
             videoUri
         }
-        Log.d("VideoPlayerScreen", "Target URI: $targetUri")
-
+        
         val currentMediaUri = exoPlayer.currentMediaItem?.localConfiguration?.uri
         
-        Log.d("VideoPlayerScreen", "Current Media URI: $currentMediaUri")
+        val isNewVideo = currentMediaUri?.toString() != targetUri.toString()
 
-        if (currentMediaUri != targetUri) {
-            Log.d("VideoPlayerScreen", "URI Mismatch. Loading new media...")
+        if (isNewVideo) {
+            Log.d("VideoPlayerScreen", "Loading new media: $targetUri")
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
             
             val mediaItemBuilder = MediaItem.Builder().setUri(targetUri)
             
             // Add subtitles if in regular mode and available
-            if (clips == null) {
-                if (targetUri.scheme == "file") {
-                    val videoFile = File(targetUri.path!!)
-                    val srtFile = FileUtils.findBestSrtForVideo(videoFile)
-                    if (srtFile != null && srtFile.exists()) {
-                        Log.d("VideoPlayerScreen", "Adding subtitles from: ${srtFile.absolutePath}")
-                        // Ensure SRT is UTF-8 for ExoPlayer
-                        val utf8Srt = FileUtils.getUtf8SrtFile(context, srtFile)
-                        val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(utf8Srt))
-                            .setMimeType(MimeTypes.APPLICATION_SUBRIP)
-                            .setLanguage(if (detectedLanguage == "עברית") "he" else "en")
-                            .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
-                            .build()
-                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
-                    }
+            if (clips == null && targetUri.scheme == "file") {
+                val videoFile = File(targetUri.path!!)
+                val srtFile = FileUtils.findBestSrtForVideo(videoFile)
+                if (srtFile != null && srtFile.exists()) {
+                    val utf8Srt = FileUtils.getUtf8SrtFile(context, srtFile)
+                    val subtitle = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(utf8Srt))
+                        .setMimeType(MimeTypes.APPLICATION_SUBRIP)
+                        .setLanguage(if (detectedLanguage == "עברית") "he" else "en")
+                        .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
+                        .build()
+                    mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
                 }
             }
 
-            exoPlayer.setMediaItem(mediaItemBuilder.build())
+            // Calculate start position
+            val startPos = if (clips != null && currentClipIndex < clips.size) {
+                val seekBack = if (detectedLanguage == "עברית") 600L else 200L
+                (clips[currentClipIndex].startTimeMs - seekBack).coerceAtLeast(0L)
+            } else 0L
+
+            exoPlayer.setMediaItem(mediaItemBuilder.build(), startPos)
             exoPlayer.prepare()
             
-            // Ensure audio language is set
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
                 .setPreferredAudioLanguage(preferredAudioLang)
                 .build()
-            
-            if (clips != null && currentClipIndex < clips.size) {
-                // Larger seek back for Hebrew/RTL languages to ensure context
-                val seekBack = if (detectedLanguage == "עברית") 500L else 200L
-                val seekPos = (clips[currentClipIndex].startTimeMs - seekBack).coerceAtLeast(0L)
-                Log.d("VideoPlayerScreen", "Seeking to: $seekPos (start was ${clips[currentClipIndex].startTimeMs})")
-                exoPlayer.seekTo(seekPos)
-            }
         } else if (clips != null && currentClipIndex < clips.size) {
+            // Same video, but check if we need to seek to a different clip
             val currentPos = exoPlayer.currentPosition
             val clipStart = clips[currentClipIndex].startTimeMs
-            if (Math.abs(currentPos - clipStart) > 1000) { 
-                Log.d("VideoPlayerScreen", "Same URI, but seeking to clip start: $clipStart")
-                exoPlayer.seekTo(clipStart)
+            val seekBack = if (detectedLanguage == "עברית") 600L else 200L
+            val targetPos = (clipStart - seekBack).coerceAtLeast(0L)
+            
+            if (Math.abs(currentPos - targetPos) > 1000) { 
+                Log.d("VideoPlayerScreen", "Seeking to clip start: $targetPos")
+                exoPlayer.seekTo(targetPos)
             }
         }
 
@@ -350,17 +350,17 @@ fun VideoPlayerScreen(
 
     // Check if clip ended
     if (clips != null) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(currentClipIndex, clips) {
             while (true) {
-                delay(50)
+                delay(100)
                 if (currentClipIndex < clips.size) {
                     val clip = clips[currentClipIndex]
-                    // Increased buffer for Hebrew to 1000ms to avoid cutting off words
-                    val endBuffer = if (detectedLanguage == "עברית") 1000L else 500L
+                    val endBuffer = if (detectedLanguage == "עברית") 1200L else 600L
                     if (exoPlayer.currentPosition >= clip.endTimeMs + endBuffer) {
                         exoPlayer.pause()
+                        break // Stop checking once we've paused for this clip
                     }
-                }
+                } else break
             }
         }
     }
@@ -676,10 +676,10 @@ fun VideoPlayerScreen(
                     val isRtl = detectedLanguage == "עברית"
                     val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
                     
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        CompositionLocalProvider(
-                            LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
-                        ) {
+                    CompositionLocalProvider(
+                        LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp).fillMaxWidth()) {
                             if (isQuizMode && hiddenIndices.isNotEmpty()) {
                                 FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
@@ -693,8 +693,9 @@ fun VideoPlayerScreen(
                                                 color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
                                                 fontSize = subtitleFontSize.sp,
                                                 fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                                style = MaterialTheme.typography.headlineSmall.copy(
+                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                                    textAlign = TextAlign.Center
                                                 ),
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
@@ -705,8 +706,9 @@ fun VideoPlayerScreen(
                                                 fontSize = subtitleFontSize.sp,
                                                 fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                 fontFamily = currentFontFamily,
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                                style = MaterialTheme.typography.headlineSmall.copy(
+                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                                    textAlign = TextAlign.Center
                                                 ),
                                                 modifier = Modifier.padding(horizontal = 2.dp)
                                             )
@@ -721,10 +723,10 @@ fun VideoPlayerScreen(
                                     fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                     fontFamily = currentFontFamily,
                                     modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.titleMedium.copy(
+                                    style = MaterialTheme.typography.headlineSmall.copy(
                                         textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
                                     ),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
