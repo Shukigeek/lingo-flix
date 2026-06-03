@@ -7,51 +7,63 @@ import java.io.File
 
 object SrtParser {
     fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
-        Log.d("SrtParser", "Parsing SRT file: ${srtFile.absolutePath}")
+        Log.d("SrtParser", "Parsing: ${srtFile.absolutePath}")
         val clips = mutableListOf<SubtitleClip>()
         try {
-            if (!srtFile.exists()) {
-                Log.e("SrtParser", "File does not exist!")
-                return emptyList()
-            }
             val bytes = srtFile.readBytes()
             val encoding = detectEncoding(bytes)
-            Log.d("SrtParser", "Detected encoding: ${encoding.name()}")
-            val content = String(bytes, encoding)
+            val content = String(bytes, encoding).replace("\r\n", "\n").replace("\r", "\n")
             
-            val lines = content.lines().map { it.trim() }
-            Log.d("SrtParser", "Total lines to process: ${lines.size}")
-            var i = 0
-            while (i < lines.size) {
-                val line = lines[i]
-                if (line.contains(" --> ")) {
-                    val times = line.split(" --> ")
-                    if (times.size == 2) {
+            // A more robust regex that handles various SRT styles
+            val blockRegex = Regex("(\\d+)\\n(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\s*-->\\s*(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n\\d+\\n\\d{2}:|$)")
+            
+            blockRegex.findAll(content).forEach { match ->
+                val startTime = parseSrtTime(match.groupValues[2])
+                val endTime = parseSrtTime(match.groupValues[3])
+                val text = cleanText(match.groupValues[4])
+                
+                if (text.isNotBlank()) {
+                    clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                }
+            }
+            
+            // Fallback if regex fails (some SRTs don't have double newlines)
+            if (clips.isEmpty()) {
+                val lines = content.lines().map { it.trim() }
+                var i = 0
+                while (i < lines.size) {
+                    if (lines[i].contains(" --> ")) {
+                        val times = lines[i].split(" --> ")
                         val startTime = parseSrtTime(times[0])
                         val endTime = parseSrtTime(times[1])
-                        
                         val textLines = mutableListOf<String>()
                         i++
-                        while (i < lines.size && lines[i].isNotEmpty() && !lines[i].contains(" --> ")) {
-                            if (lines[i].toIntOrNull() == null) {
+                        while (i < lines.size && !lines[i].contains(" --> ") && (i + 1 >= lines.size || !lines[i+1].contains(" --> "))) {
+                            if (lines[i].isNotBlank() && lines[i].toIntOrNull() == null) {
                                 textLines.add(lines[i])
                             }
                             i++
                         }
-                        val text = textLines.joinToString("\n").trim()
-                        if (text.isNotEmpty()) {
+                        val text = cleanText(textLines.joinToString("\n"))
+                        if (text.isNotBlank()) {
                             clips.add(SubtitleClip(text, startTime, endTime, videoUri))
                         }
                         continue
                     }
+                    i++
                 }
-                i++
             }
-            Log.d("SrtParser", "Successfully parsed ${clips.size} clips")
+            Log.d("SrtParser", "Found ${clips.size} clips")
         } catch (e: Exception) {
-            Log.e("SrtParser", "Error parsing SRT", e)
+            Log.e("SrtParser", "Error", e)
         }
         return clips
+    }
+
+    private fun cleanText(text: String): String {
+        return text.replace(Regex("<[^>]*>"), "") // Remove HTML tags
+            .replace(Regex("\\{[^}]*\\}"), "") // Remove brace tags
+            .trim()
     }
 
     private fun detectEncoding(bytes: ByteArray): java.nio.charset.Charset {
@@ -59,22 +71,27 @@ object SrtParser {
         if (bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) return Charsets.UTF_16BE
         if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) return Charsets.UTF_16LE
         
+        // Check for valid UTF-8
         if (isUtf8(bytes)) return Charsets.UTF_8
 
-        var hebrewChars = 0
-        var spanishChars = 0
+        var hebrewCount = 0
+        var cyrillicCount = 0
+        var arabicCount = 0
+        var latinCount = 0
         
         for (b in bytes) {
             val i = b.toInt() and 0xFF
-            if (i in 0xE0..0xFA) hebrewChars++
-            if (i == 0xF1 || i == 0xD1 || i == 0xE1 || i == 0xE9 || i == 0xED || i == 0xF3 || i == 0xFA || i == 0xFC) {
-                spanishChars++
-            }
+            if (i in 0xE0..0xFA) hebrewCount++ // Windows-1255
+            if (i in 0xC0..0xFF) cyrillicCount++ // Windows-1251
+            if (i in 0xC1..0xFE) arabicCount++ // Windows-1256
+            if (i in 0xA0..0xFF) latinCount++ // Windows-1252
         }
         
         return when {
-            hebrewChars > spanishChars && hebrewChars > 5 -> java.nio.charset.Charset.forName("windows-1255")
-            spanishChars > 0 -> java.nio.charset.Charset.forName("windows-1252")
+            hebrewCount > 10 && hebrewCount > cyrillicCount -> java.nio.charset.Charset.forName("windows-1255")
+            cyrillicCount > 10 && cyrillicCount > hebrewCount -> java.nio.charset.Charset.forName("windows-1251")
+            arabicCount > 10 && arabicCount > hebrewCount -> java.nio.charset.Charset.forName("windows-1256")
+            latinCount > 0 -> java.nio.charset.Charset.forName("windows-1252")
             else -> Charsets.UTF_8
         }
     }

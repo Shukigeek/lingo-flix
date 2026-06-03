@@ -330,46 +330,28 @@ class MainActivity : ComponentActivity() {
                             // Create a map of ALL available videos for discovery
                             val allVideos = mutableListOf<File>()
                             videoDir.walkTopDown().forEach { file ->
-                                if (!file.isDirectory && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "webm")) {
+                                if (!file.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { file.name.endsWith(".$it", ignoreCase = true) }) {
                                     allVideos.add(file)
                                 }
                             }
 
-                            var matchedToVideo = 0
-                            var linkedAndMatched = 0
+                            var videosWithSrt = 0
                             
                             // For each video, find its best matching SRT
                             allVideos.forEach { videoFile ->
-                                val relativePath = videoFile.absolutePath.substringAfter(videoDir.absolutePath).trim(File.separatorChar)
-                                val pathParts = relativePath.split(File.separatorChar)
-                                
-                                val isLinked = linkedToRandomPool.any { linkedName ->
-                                    videoFile.name.equals(linkedName, ignoreCase = true) || 
-                                    videoFile.nameWithoutExtension.equals(linkedName, ignoreCase = true) ||
-                                    pathParts.any { it.equals(linkedName, ignoreCase = true) }
-                                }
-
-                                // Fallback: if pool is empty, consider all videos linked for now to help the user
-                                val shouldInclude = if (linkedToRandomPool.isEmpty()) true else isLinked
-
-                                if (shouldInclude) {
-                                    val bestSrt = FileUtils.findBestSrtForVideo(videoFile)
-                                    if (bestSrt != null) {
-                                        matchedToVideo++
-                                        val clips = SrtParser.parseSrtFile(bestSrt, Uri.fromFile(videoFile))
-                                        if (clips.isNotEmpty()) {
-                                            linkedAndMatched++
-                                            allClips.addAll(clips)
-                                        }
+                                val bestSrt = FileUtils.findBestSrtForVideo(videoFile)
+                                if (bestSrt != null && bestSrt.exists()) {
+                                    videosWithSrt++
+                                    val clips = SrtParser.parseSrtFile(bestSrt, Uri.fromFile(videoFile))
+                                    if (clips.isNotEmpty()) {
+                                        linkedAndMatched++
+                                        allClips.addAll(clips)
                                     }
                                 }
                             }
 
                             if (allClips.isNotEmpty()) {
-                                val msg = if (linkedToRandomPool.isEmpty()) 
-                                    "מציג משפטים מכל הסרטונים (לא קישרת סרטונים ספציפיים)" 
-                                    else "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים"
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "נמצאו ${allClips.size} משפטים מתוך $linkedAndMatched סרטונים", Toast.LENGTH_SHORT).show()
                                 practiceClips = allClips.shuffled()
                                 selectedVideoUri = practiceClips!![0].videoUri
                                 isQuizModeActive = true
@@ -377,9 +359,9 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = "player"
                             } else {
                                 val msg = when {
-                                    allVideos.isEmpty() -> "לא נמצאו סרטונים בתיקייה. נא להעלות סרטונים קודם."
-                                    matchedToVideo == 0 -> "לא נמצאו כתוביות (SRT) תואמות לסרטונים."
-                                    else -> "לא הצלחנו לקרוא משפטים מהכתוביות. ודא שהן בפורמט SRT תקין."
+                                    allVideos.isEmpty() -> "לא נמצאו סרטונים בתיקייה. נא להעלות סרטונים וכתוביות קודם."
+                                    videosWithSrt == 0 -> "נמצאו סרטונים, אך לאף אחד מהם אין קובץ כתוביות (SRT) באותו שם."
+                                    else -> "נמצאו כתוביות, אך לא הצלחנו לקרוא מהן משפטים. ודא שהן תקינות."
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
