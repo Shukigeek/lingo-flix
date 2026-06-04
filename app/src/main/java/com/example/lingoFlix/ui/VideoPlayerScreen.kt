@@ -162,7 +162,7 @@ fun VideoPlayerScreen(
     var correctCount by remember { mutableIntStateOf(0) }
     var totalAttempted by remember { mutableIntStateOf(0) }
     var comboCount by remember { mutableIntStateOf(0) }
-    var heartsLeft by remember { mutableIntStateOf(3) }
+    var heartsLeft by remember { mutableIntStateOf(10) }
     var isAutoAdvance by remember { mutableStateOf(false) }
 
     var hiddenIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
@@ -202,24 +202,10 @@ fun VideoPlayerScreen(
     var subtitleFontFamily by remember { mutableStateOf(sharedPrefs.getString("sub_font_family", "SansSerif") ?: "SansSerif") }
     var showStyleDialog by remember { mutableStateOf(false) }
 
-    // Multiple Choice States
-    var mcOptions by remember(currentClipIndex, quizType) { mutableStateOf(listOf<String>()) }
-    var revealedCorrectIndex by remember(currentClipIndex) { mutableIntStateOf(-1) }
-    var wrongSelectedIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
+    // Multiple Choice States removed as requested
 
     LaunchedEffect(currentClipIndex, quizType, clips) {
-        if (quizType == "multiple_choice" && clips != null && currentClip != null) {
-            val correctWord = wordsList.getOrNull(hiddenIndices.firstOrNull() ?: -1) ?: ""
-            if (correctWord.isNotEmpty()) {
-                val allWords = clips.flatMap { it.text.split(Regex("(?<=\\s)|(?=\\s)|(?<=[.,!?;])|(?=[.,!?;])")) }
-                    .map { it.trim().removeSurrounding("\"", "\"").removeSurrounding(".", "") }
-                    .filter { it.length >= correctWord.length - 2 && it.length <= correctWord.length + 2 && it != correctWord && it.any { c -> c.isLetter() } }
-                    .distinct()
-                
-                val wrongOptions = allWords.shuffled().take(3)
-                mcOptions = (wrongOptions + correctWord).shuffled()
-            }
-        }
+        // Multiple Choice Logic removed
     }
 
     // Shake and Flash Animation States
@@ -599,8 +585,9 @@ fun VideoPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
+                // First Row: Hearts and Auto-Advance
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -608,7 +595,7 @@ fun VideoPlayerScreen(
                 ) {
                     // Hearts
                     Row {
-                        repeat(3) { index ->
+                        repeat(10) { index ->
                             val isLost = index >= heartsLeft
                             val scale by animateFloatAsState(if (isLost) 0.8f else 1.2f, label = "heartScale")
                             val alpha by animateFloatAsState(if (isLost) 0.3f else 1f, label = "heartAlpha")
@@ -618,16 +605,34 @@ fun VideoPlayerScreen(
                                 contentDescription = "Heart",
                                 tint = if (isLost) Color.Gray else Color.Red,
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(20.dp)
                                     .scale(scale)
                                     .alpha(alpha)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                         }
                     }
 
-                    // Combo Badge
-                    if (comboCount >= 2) {
+                    // Auto-Advance Toggle
+                    IconButton(
+                        onClick = { isAutoAdvance = !isAutoAdvance },
+                        modifier = Modifier.background(
+                            if (isAutoAdvance) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Auto Advance",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                // Second Row: Combo Badge (to avoid overlap with top controls)
+                if (comboCount >= 2) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         val multiplier = when {
                             comboCount >= 10 -> 10
                             comboCount >= 5 -> 5
@@ -660,29 +665,15 @@ fun VideoPlayerScreen(
                             )
                         }
                     }
-
-                    // Auto-Advance Toggle
-                    IconButton(
-                        onClick = { isAutoAdvance = !isAutoAdvance },
-                        modifier = Modifier.background(
-                            if (isAutoAdvance) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FastForward,
-                            contentDescription = "Auto Advance",
-                            tint = Color.White
-                        )
-                    }
                 }
             }
         }
         
-        // Custom HUD
+        // Custom HUD (Top Controls)
         Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.statusBarsPadding().height(64.dp)) // Added spacer to push controls below HUD
             Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -814,7 +805,7 @@ fun VideoPlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(bottom = 16.dp)
                         .offset(x = shakeOffset.value.dp)
                         .border(2.dp, if (flashColor != Color.Transparent) flashColor else borderColor, RoundedCornerShape(12.dp)),
                     shape = RoundedCornerShape(12.dp)
@@ -822,74 +813,75 @@ fun VideoPlayerScreen(
                     Box(modifier = Modifier.background(flashColor.copy(alpha = 0.1f))) {
                         val text = currentClip.text
                         val isRtl = detectedLanguage == "עברית"
-                    val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
-                    
-                    CompositionLocalProvider(
-                        LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
-                    ) {
+                        val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
+                        
                         Column(modifier = Modifier.padding(20.dp).fillMaxWidth()) {
-                            if (isQuizMode && hiddenIndices.isNotEmpty()) {
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    wordsList.forEachIndexed { index, word ->
-                                        if (hiddenIndices.contains(index)) {
-                                            val isWordCorrect = userInput.split(Regex("\\s+")).any { it.trim().equals(word.trim(), ignoreCase = true) }
-                                            Text(
-                                                text = if (isChecked) word else "____",
-                                                color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
-                                                fontSize = subtitleFontSize.sp,
-                                                fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                style = MaterialTheme.typography.headlineSmall.copy(
-                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                    textAlign = TextAlign.Center
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 2.dp)
-                                            )
-                                        } else {
-                                            Text(
-                                                text = word,
-                                                color = textColor,
-                                                fontSize = subtitleFontSize.sp,
-                                                fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                fontFamily = currentFontFamily,
-                                                style = MaterialTheme.typography.headlineSmall.copy(
-                                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                    textAlign = TextAlign.Center
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 2.dp)
-                                            )
+                            CompositionLocalProvider(
+                                LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
+                            ) {
+                                if (isQuizMode && hiddenIndices.isNotEmpty()) {
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        wordsList.forEachIndexed { index, word ->
+                                            if (hiddenIndices.contains(index)) {
+                                                val isWordCorrect = userInput.split(Regex("\\s+")).any { it.trim().equals(word.trim(), ignoreCase = true) }
+                                                Text(
+                                                    text = if (isChecked) word else "____",
+                                                    color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
+                                                    fontSize = subtitleFontSize.sp,
+                                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                                    fontFamily = currentFontFamily,
+                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                                        textAlign = TextAlign.Center
+                                                    ),
+                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = word,
+                                                    color = textColor,
+                                                    fontSize = subtitleFontSize.sp,
+                                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                                    fontFamily = currentFontFamily,
+                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                                        textAlign = TextAlign.Center
+                                                    ),
+                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                )
+                                            }
                                         }
                                     }
+                                } else {
+                                    Text(
+                                        text = text,
+                                        color = textColor,
+                                        fontSize = subtitleFontSize.sp,
+                                        fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                        fontFamily = currentFontFamily,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                        ),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
-                            } else {
-                                Text(
-                                    text = text,
-                                    color = textColor,
-                                    fontSize = subtitleFontSize.sp,
-                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                    fontFamily = currentFontFamily,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
-                                    ),
-                                    textAlign = TextAlign.Center
-                                )
                             }
                         }
                     }
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
                         onClick = { onToggleFavorite(clipId) },
                         modifier = Modifier
-                            .padding(top = 8.dp)
                             .background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
                     ) {
                         Icon(
@@ -907,7 +899,6 @@ fun VideoPlayerScreen(
                             showXRay = true 
                         },
                         modifier = Modifier
-                            .padding(top = 8.dp)
                             .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
                     ) {
                         Icon(
@@ -919,91 +910,44 @@ fun VideoPlayerScreen(
                 }
 
                 if (isQuizMode && !isChecked) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    if (quizType == "multiple_choice") {
-                        val correctWord = wordsList.getOrNull(hiddenIndices.firstOrNull() ?: -1) ?: ""
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            mcOptions.forEachIndexed { index, option ->
-                                DuoButton(
-                                    text = option,
-                                    onClick = {
-                                        userInput = option
-                                        if (option == correctWord) {
-                                            isChecked = true
-                                        } else {
-                                            wrongSelectedIndices = wrongSelectedIndices + index
-                                            // Trigger shake/flash via a side effect or just by checking logic
-                                            scope.launch {
-                                                SoundManager.playWrong()
-                                                flashColor = Color.Red
-                                                repeat(3) {
-                                                    shakeOffset.animateTo(10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
-                                                    shakeOffset.animateTo(-10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
-                                                }
-                                                shakeOffset.animateTo(0f)
-                                                delay(500)
-                                                flashColor = Color.Transparent
-                                            }
-                                            heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
-                                            if (heartsLeft == 0) {
-                                                // Wait a bit to show the mistake then game over
-                                            }
-                                        }
-                                    },
-                                    color = when {
-                                        wrongSelectedIndices.contains(index) -> DuoRed
-                                        else -> DuoBlue
-                                    },
-                                    darkColor = when {
-                                        wrongSelectedIndices.contains(index) -> DuoDarkRed
-                                        else -> DuoBlue.copy(alpha = 0.8f)
-                                    },
-                                    modifier = Modifier.padding(4.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextField(
-                                value = userInput,
-                                onValueChange = { userInput = it },
-                                placeholder = { Text("הקלד את המילים החסרות...") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(onClick = { isChecked = true }) {
-                                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
-                                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = userInput,
+                            onValueChange = { userInput = it },
+                            placeholder = { Text("הקלד את המילים החסרות...") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(onClick = { isChecked = true }) {
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
                                 }
-                            )
-                            
-                            Spacer(modifier = Modifier.width(8.dp))
-                            
-                            IconButton(
-                                onClick = {
-                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
-                                        putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
-                                        // Try to prefer offline recognition if available
-                                        putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                                    }
-                                    try {
-                                        voiceLauncher.launch(intent)
-                                    } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
-                            ) {
-                                Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
                             }
+                        )
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
+                                    // Try to prefer offline recognition if available
+                                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                                }
+                                try {
+                                    voiceLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
                         }
                     }
                 } else if (isQuizMode && isChecked) {
@@ -1231,7 +1175,7 @@ fun VideoPlayerScreen(
                 text = { Text("השתמשת בכל הלבבות שלך. השלמת $currentClipIndex משפטים.") },
                 confirmButton = {
                     Button(onClick = {
-                        heartsLeft = 3
+                        heartsLeft = 10
                         currentClipIndex = 0
                         userInput = ""
                         isChecked = false
@@ -1248,5 +1192,4 @@ fun VideoPlayerScreen(
             )
         }
     }
-}
 }

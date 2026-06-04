@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
         val videoDir = File(context.filesDir, "videos")
         if (videoDir.exists()) {
             val existingRelativePaths = videoDir.walkTopDown()
-                .filter { !it.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { ext -> it.name.endsWith(".$ext", ignoreCase = true) } }
+                .filter { !it.isDirectory && (listOf("mp4", "mkv", "avi", "mov", "webm").any { ext -> it.name.endsWith(".$ext", ignoreCase = true) } || !it.name.contains(".")) }
                 .map { it.relativeTo(videoDir).path }
                 .toSet()
             
@@ -369,7 +369,7 @@ class MainActivity : ComponentActivity() {
                             // 1. Collect ALL video files recursively
                             val discoveredVideos = mutableListOf<File>()
                             videoDir.walkTopDown().forEach { file ->
-                                if (!file.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { file.name.endsWith(".$it", ignoreCase = true) }) {
+                                if (!file.isDirectory && (listOf("mp4", "mkv", "avi", "mov", "webm").any { file.name.endsWith(".$it", ignoreCase = true) } || !file.name.contains("."))) {
                                     discoveredVideos.add(file)
                                 }
                             }
@@ -380,10 +380,7 @@ class MainActivity : ComponentActivity() {
                             
                             var filteredVideos = discoveredVideos.filter { linkedPaths.contains(it.relativeTo(videoDir).path) }
                             
-                            // Fallback: If nothing is linked, use all videos with SRTs to avoid empty pool
-                            if (filteredVideos.isEmpty()) {
-                                filteredVideos = discoveredVideos.filter { FileUtils.findBestSrtForVideo(it)?.exists() == true }
-                            }
+                            // REMOVED Fallback: We only want videos the user explicitly added to the pool
                             
                             allVideos.addAll(filteredVideos)
 
