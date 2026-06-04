@@ -20,25 +20,54 @@ import com.google.ai.client.generativeai.GenerativeModel
 import android.content.Context
 
 @Composable
-fun DifficultySelectionDialog(onDismiss: () -> Unit, onStart: (String) -> Unit) {
+fun DifficultySelectionDialog(onDismiss: () -> Unit, onStart: (String, String) -> Unit) {
     var selectedDifficulty by remember { mutableStateOf("קל") }
+    var selectedQuizType by remember { mutableStateOf("typing") }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("בחר רמת קושי לתרגול") },
+        title = { Text("הגדרות תרגול") },
         text = {
             Column {
+                Text("בחר רמת קושי:", fontWeight = FontWeight.Bold)
                 listOf("קל", "בינוני", "קשה").forEach { level ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedDifficulty = level }
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = 4.dp)
                     ) {
                         RadioButton(selected = selectedDifficulty == level, onClick = { selectedDifficulty = level })
                         Text(text = level, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text("אופן תרגול:", fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedQuizType = "typing" }
+                        .padding(vertical = 4.dp)
+                ) {
+                    RadioButton(selected = selectedQuizType == "typing", onClick = { selectedQuizType = "typing" })
+                    Text(text = "הקלדה", modifier = Modifier.padding(start = 8.dp))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedQuizType = "multiple_choice" }
+                        .padding(vertical = 4.dp)
+                ) {
+                    RadioButton(selected = selectedQuizType == "multiple_choice", onClick = { selectedQuizType = "multiple_choice" })
+                    Text(text = "בחירה מרובה", modifier = Modifier.padding(start = 8.dp))
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = when(selectedDifficulty) {
                         "קל" -> "מילה אחת חסרה בכל משפט"
@@ -51,7 +80,7 @@ fun DifficultySelectionDialog(onDismiss: () -> Unit, onStart: (String) -> Unit) 
             }
         },
         confirmButton = {
-            Button(onClick = { onStart(selectedDifficulty) }) {
+            Button(onClick = { onStart(selectedDifficulty, selectedQuizType) }) {
                 Text("התחל תרגול")
             }
         },

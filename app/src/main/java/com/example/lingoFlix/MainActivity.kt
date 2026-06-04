@@ -143,6 +143,7 @@ class MainActivity : ComponentActivity() {
     var isQuizModeActive by rememberSaveable { mutableStateOf(false) }
     var isRandomModeActive by rememberSaveable { mutableStateOf(false) }
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
+    var quizType by rememberSaveable { mutableStateOf("typing") }
 
     // Re-apply immersive mode when screen changes to ensure consistency
     LaunchedEffect(currentScreen) {
@@ -280,12 +281,13 @@ class MainActivity : ComponentActivity() {
                 selectedVideoFile?.let { file ->
                     DifficultyScreen(
                         videoTitle = file.name,
-                        onDifficultySelected = { difficulty ->
+                        onDifficultySelected = { difficulty, type ->
                             quizDifficulty = when(difficulty) {
                                 com.example.lingoFlix.util.GameLogic.Difficulty.EASY -> "קל"
                                 com.example.lingoFlix.util.GameLogic.Difficulty.MEDIUM -> "בינוני"
                                 com.example.lingoFlix.util.GameLogic.Difficulty.HARD -> "קשה"
                             }
+                            quizType = type
                             
                             // Update last modified to keep it in recents
                             file.setLastModified(System.currentTimeMillis())
@@ -353,8 +355,9 @@ class MainActivity : ComponentActivity() {
                 if (showDifficultyDialogForRandom) {
                     DifficultySelectionDialog(
                         onDismiss = { showDifficultyDialogForRandom = false },
-                        onStart = { diff ->
+                        onStart = { diff, type ->
                             quizDifficulty = diff
+                            quizType = type
                             showDifficultyDialogForRandom = false
                             
                             val videoDir = File(context.filesDir, "videos")
@@ -426,8 +429,9 @@ class MainActivity : ComponentActivity() {
                 if (showDifficultyDialogForFavorites) {
                     DifficultySelectionDialog(
                         onDismiss = { showDifficultyDialogForFavorites = false },
-                        onStart = { diff ->
+                        onStart = { diff, type ->
                             quizDifficulty = diff
+                            quizType = type
                             showDifficultyDialogForFavorites = false
                             
                             val videoDir = File(context.filesDir, "videos")
@@ -491,6 +495,7 @@ class MainActivity : ComponentActivity() {
                         isQuizMode = isQuizModeActive,
                         isRandomMode = isRandomModeActive,
                         difficulty = quizDifficulty,
+                        quizType = quizType,
                         onCorrectAnswer = { multiplier ->
                             val basePoints = when (quizDifficulty) {
                                 "בינוני" -> 30

@@ -28,10 +28,12 @@ import com.example.lingoFlix.util.GameLogic
 @Composable
 fun DifficultyScreen(
     videoTitle: String,
-    onDifficultySelected: (GameLogic.Difficulty) -> Unit,
+    onDifficultySelected: (GameLogic.Difficulty, String) -> Unit,
     onRegularView: () -> Unit = {},
     onBack: () -> Unit
 ) {
+    var selectedQuizType by remember { mutableStateOf("typing") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,8 +51,31 @@ fun DifficultyScreen(
             text = videoTitle,
             fontSize = 18.sp,
             color = Color.Gray,
-            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            FilterChip(
+                selected = selectedQuizType == "typing",
+                onClick = { selectedQuizType = "typing" },
+                label = { Text("הקלדה") },
+                leadingIcon = if (selectedQuizType == "typing") {
+                    { Icon(Icons.Default.Star, null, modifier = Modifier.size(18.dp)) }
+                } else null
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            FilterChip(
+                selected = selectedQuizType == "multiple_choice",
+                onClick = { selectedQuizType = "multiple_choice" },
+                label = { Text("בחירה מרובה") },
+                leadingIcon = if (selectedQuizType == "multiple_choice") {
+                    { Icon(Icons.Default.Star, null, modifier = Modifier.size(18.dp)) }
+                } else null
+            )
+        }
 
         DifficultyCard(
             level = "קל",
@@ -58,8 +83,9 @@ fun DifficultyScreen(
             xp = "10 XP",
             icon = Icons.Default.ElectricBolt,
             color = Color(0xFF58CC02),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.EASY) }
+            onClick = { onDifficultySelected(GameLogic.Difficulty.EASY, selectedQuizType) }
         )
+// ...
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -69,7 +95,7 @@ fun DifficultyScreen(
             xp = "20 XP",
             icon = Icons.Default.Star,
             color = Color(0xFFFFB800),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.MEDIUM) }
+            onClick = { onDifficultySelected(GameLogic.Difficulty.MEDIUM, selectedQuizType) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -80,7 +106,7 @@ fun DifficultyScreen(
             xp = "50 XP",
             icon = Icons.Default.Psychology,
             color = Color(0xFFEA2B2B),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.HARD) }
+            onClick = { onDifficultySelected(GameLogic.Difficulty.HARD, selectedQuizType) }
         )
         
         Spacer(modifier = Modifier.height(32.dp))

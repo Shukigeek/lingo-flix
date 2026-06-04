@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -78,7 +79,8 @@ fun VideoPlayerScreen(
     isRandomMode: Boolean = false,
     difficulty: String = "קל",
     onCorrectAnswer: (Int) -> Unit = {},
-    userId: String = "guest"
+    userId: String = "guest",
+    quizType: String = "typing"
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
@@ -194,11 +196,31 @@ fun VideoPlayerScreen(
     
     // Subtitle Styling states
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", Context.MODE_PRIVATE) }
-    var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 28f)) }
+    var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 34f)) }
     var subtitleColorHex by remember { mutableStateOf(sharedPrefs.getString("sub_color", "#FFFFFF") ?: "#FFFFFF") }
     var subtitleIsBold by remember { mutableStateOf(sharedPrefs.getBoolean("sub_is_bold", true)) }
     var subtitleFontFamily by remember { mutableStateOf(sharedPrefs.getString("sub_font_family", "SansSerif") ?: "SansSerif") }
     var showStyleDialog by remember { mutableStateOf(false) }
+
+    // Multiple Choice States
+    var mcOptions by remember(currentClipIndex, quizType) { mutableStateOf(listOf<String>()) }
+    var revealedCorrectIndex by remember(currentClipIndex) { mutableIntStateOf(-1) }
+    var wrongSelectedIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
+
+    LaunchedEffect(currentClipIndex, quizType, clips) {
+        if (quizType == "multiple_choice" && clips != null && currentClip != null) {
+            val correctWord = wordsList.getOrNull(hiddenIndices.firstOrNull() ?: -1) ?: ""
+            if (correctWord.isNotEmpty()) {
+                val allWords = clips.flatMap { it.text.split(Regex("(?<=\\s)|(?=\\s)|(?<=[.,!?;])|(?=[.,!?;])")) }
+                    .map { it.trim().removeSurrounding("\"", "\"").removeSurrounding(".", "") }
+                    .filter { it.length >= correctWord.length - 2 && it.length <= correctWord.length + 2 && it != correctWord && it.any { c -> c.isLetter() } }
+                    .distinct()
+                
+                val wrongOptions = allWords.shuffled().take(3)
+                mcOptions = (wrongOptions + correctWord).shuffled()
+            }
+        }
+    }
 
     // Shake and Flash Animation States
     val shakeOffset = remember { Animatable(0f) }
@@ -270,10 +292,12 @@ fun VideoPlayerScreen(
             val validIndices = words.indices.filter { words[it].length > 1 && words[it].any { c -> c.isLetter() } }
             
             if (validIndices.isNotEmpty()) {
-                val countToHide = when (difficulty) {
-                    "בינוני" -> (validIndices.size * 0.4).toInt().coerceAtLeast(1)
-                    "קשה" -> (validIndices.size * 0.7).toInt().coerceAtLeast(1)
-                    else -> 1 // קל
+                val countToHide = if (quizType == "multiple_choice") 1 else {
+                    when (difficulty) {
+                        "בינוני" -> (validIndices.size * 0.4).toInt().coerceAtLeast(1)
+                        "קשה" -> (validIndices.size * 0.7).toInt().coerceAtLeast(1)
+                        else -> 1 // קל
+                    }
                 }
                 hiddenIndices = validIndices.shuffled().take(countToHide).toSet()
             }
@@ -568,6 +592,92 @@ fun VideoPlayerScreen(
                 }
             }
         }
+
+        // HUD: Hearts, Combo, Auto-Advance
+        if (isQuizMode && !isSessionComplete) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Hearts
+                    Row {
+                        repeat(3) { index ->
+                            val isLost = index >= heartsLeft
+                            val scale by animateFloatAsState(if (isLost) 0.8f else 1.2f, label = "heartScale")
+                            val alpha by animateFloatAsState(if (isLost) 0.3f else 1f, label = "heartAlpha")
+                            
+                            Icon(
+                                imageVector = if (isLost) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
+                                contentDescription = "Heart",
+                                tint = if (isLost) Color.Gray else Color.Red,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .scale(scale)
+                                    .alpha(alpha)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
+
+                    // Combo Badge
+                    if (comboCount >= 2) {
+                        val multiplier = when {
+                            comboCount >= 10 -> 10
+                            comboCount >= 5 -> 5
+                            comboCount >= 3 -> 3
+                            else -> 2
+                        }
+                        
+                        val infiniteTransition = rememberInfiniteTransition(label = "comboPulse")
+                        val scale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(500),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "comboScale"
+                        )
+
+                        Surface(
+                            color = Color(0xFFFF9600),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.scale(scale)
+                        ) {
+                            Text(
+                                text = "🔥 ${multiplier}x COMBO!",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+
+                    // Auto-Advance Toggle
+                    IconButton(
+                        onClick = { isAutoAdvance = !isAutoAdvance },
+                        modifier = Modifier.background(
+                            if (isAutoAdvance) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Auto Advance",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
         
         // Custom HUD
         Column(modifier = Modifier.fillMaxSize()) {
@@ -704,6 +814,7 @@ fun VideoPlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
+                        .padding(bottom = 32.dp)
                         .offset(x = shakeOffset.value.dp)
                         .border(2.dp, if (flashColor != Color.Transparent) flashColor else borderColor, RoundedCornerShape(12.dp)),
                     shape = RoundedCornerShape(12.dp)
@@ -809,43 +920,90 @@ fun VideoPlayerScreen(
 
                 if (isQuizMode && !isChecked) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            value = userInput,
-                            onValueChange = { userInput = it },
-                            placeholder = { Text("הקלד את המילים החסרות...") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            trailingIcon = {
-                                IconButton(onClick = { isChecked = true }) {
-                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
-                                }
-                            }
-                        )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
-                                    // Try to prefer offline recognition if available
-                                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                                }
-                                try {
-                                    voiceLauncher.launch(intent)
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
+                    if (quizType == "multiple_choice") {
+                        val correctWord = wordsList.getOrNull(hiddenIndices.firstOrNull() ?: -1) ?: ""
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
+                            mcOptions.forEachIndexed { index, option ->
+                                DuoButton(
+                                    text = option,
+                                    onClick = {
+                                        userInput = option
+                                        if (option == correctWord) {
+                                            isChecked = true
+                                        } else {
+                                            wrongSelectedIndices = wrongSelectedIndices + index
+                                            // Trigger shake/flash via a side effect or just by checking logic
+                                            scope.launch {
+                                                SoundManager.playWrong()
+                                                flashColor = Color.Red
+                                                repeat(3) {
+                                                    shakeOffset.animateTo(10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                                                    shakeOffset.animateTo(-10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                                                }
+                                                shakeOffset.animateTo(0f)
+                                                delay(500)
+                                                flashColor = Color.Transparent
+                                            }
+                                            heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
+                                            if (heartsLeft == 0) {
+                                                // Wait a bit to show the mistake then game over
+                                            }
+                                        }
+                                    },
+                                    color = when {
+                                        wrongSelectedIndices.contains(index) -> DuoRed
+                                        else -> DuoBlue
+                                    },
+                                    darkColor = when {
+                                        wrongSelectedIndices.contains(index) -> DuoDarkRed
+                                        else -> DuoBlue.copy(alpha = 0.8f)
+                                    },
+                                    modifier = Modifier.padding(4.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextField(
+                                value = userInput,
+                                onValueChange = { userInput = it },
+                                placeholder = { Text("הקלד את המילים החסרות...") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                trailingIcon = {
+                                    IconButton(onClick = { isChecked = true }) {
+                                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
+                                    }
+                                }
+                            )
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            IconButton(
+                                onClick = {
+                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
+                                        putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
+                                        // Try to prefer offline recognition if available
+                                        putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                                    }
+                                    try {
+                                        voiceLauncher.launch(intent)
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
+                            }
                         }
                     }
                 } else if (isQuizMode && isChecked) {
@@ -870,8 +1028,21 @@ fun VideoPlayerScreen(
                             
                             // Flash Green
                             flashColor = Color.Green
-                            delay(500)
-                            flashColor = Color.Transparent
+                            
+                            if (isAutoAdvance) {
+                                delay(1500)
+                                flashColor = Color.Transparent
+                                if (currentClipIndex < clips.size - 1) {
+                                    currentClipIndex++
+                                    userInput = ""
+                                    isChecked = false
+                                } else {
+                                    isSessionComplete = true
+                                }
+                            } else {
+                                delay(500)
+                                flashColor = Color.Transparent
+                            }
 
                             confettiState = listOf(
                                 Party(
@@ -898,8 +1069,22 @@ fun VideoPlayerScreen(
                             }
                             shakeOffset.animateTo(0f)
                             
-                            delay(500)
-                            flashColor = Color.Transparent
+                            if (isAutoAdvance) {
+                                delay(2500)
+                                flashColor = Color.Transparent
+                                if (heartsLeft > 0) {
+                                    if (currentClipIndex < clips.size - 1) {
+                                        currentClipIndex++
+                                        userInput = ""
+                                        isChecked = false
+                                    } else {
+                                        isSessionComplete = true
+                                    }
+                                }
+                            } else {
+                                delay(500)
+                                flashColor = Color.Transparent
+                            }
                         }
                     }
 
@@ -1038,5 +1223,30 @@ fun VideoPlayerScreen(
                 }
             }
         }
+        // Game Over Dialog
+        if (isQuizMode && heartsLeft == 0 && !isSessionComplete) {
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text("המשחק נגמר! 💔") },
+                text = { Text("השתמשת בכל הלבבות שלך. השלמת $currentClipIndex משפטים.") },
+                confirmButton = {
+                    Button(onClick = {
+                        heartsLeft = 3
+                        currentClipIndex = 0
+                        userInput = ""
+                        isChecked = false
+                        comboCount = 0
+                    }) {
+                        Text("נסה שוב")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onBack) {
+                        Text("חזור לרשימה")
+                    }
+                }
+            )
+        }
     }
+}
 }
