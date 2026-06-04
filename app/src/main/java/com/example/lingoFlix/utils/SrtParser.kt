@@ -18,12 +18,16 @@ object SrtParser {
             val blockRegex = Regex("(\\d+)\\n(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\s*-->\\s*(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n\\d+\\n\\d{2}:|$)")
             
             blockRegex.findAll(content).forEach { match ->
-                val startTime = parseSrtTime(match.groupValues[2])
-                val endTime = parseSrtTime(match.groupValues[3])
-                val text = cleanText(match.groupValues[4])
-                
-                if (text.isNotBlank()) {
-                    clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                try {
+                    val startTime = parseSrtTime(match.groupValues[2])
+                    val endTime = parseSrtTime(match.groupValues[3])
+                    val text = cleanText(match.groupValues[4])
+                    
+                    if (text.isNotBlank()) {
+                        clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                    }
+                } catch (e: Exception) {
+                    Log.w("SrtParser", "Skipping malformed block", e)
                 }
             }
             
@@ -44,9 +48,13 @@ object SrtParser {
                             }
                             i++
                         }
-                        val text = cleanText(textLines.joinToString("\n"))
-                        if (text.isNotBlank()) {
-                            clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                        try {
+                            val text = cleanText(textLines.joinToString("\n"))
+                            if (text.isNotBlank()) {
+                                clips.add(SubtitleClip(text, startTime, endTime, videoUri))
+                            }
+                        } catch (e: Exception) {
+                            Log.w("SrtParser", "Skipping malformed block in fallback", e)
                         }
                         continue
                     }
@@ -119,12 +127,17 @@ object SrtParser {
     }
 
     private fun parseSrtTime(timeStr: String): Long {
-        val parts = timeStr.replace(',', '.').split(":")
+        val clean = timeStr.trim()
+        val parts = clean.replace(',', '.').split(":")
         if (parts.size != 3) return 0
-        val hours = parts[0].toLong()
-        val minutes = parts[1].toLong()
-        val secondsWithMs = parts[2].toDouble()
-        return (hours * 3600000 + minutes * 60000 + (secondsWithMs * 1000).toLong())
+        return try {
+            val hours = parts[0].trim().toLong()
+            val minutes = parts[1].trim().toLong()
+            val secondsWithMs = parts[2].trim().toDouble()
+            (hours * 3600000 + minutes * 60000 + (secondsWithMs * 1000).toLong())
+        } catch (e: Exception) {
+            0L
+        }
     }
 
     fun detectSubtitleLanguage(file: File): String {

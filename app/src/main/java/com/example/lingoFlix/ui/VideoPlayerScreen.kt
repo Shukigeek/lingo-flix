@@ -57,7 +57,7 @@ import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.ui.components.*
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SrtParser
-import com.example.lingoFlix.utils.SubtitleGenerator
+import com.example.lingoFlix.util.SoundManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.dionsegijn.konfetti.compose.KonfettiView
@@ -77,7 +77,7 @@ fun VideoPlayerScreen(
     isQuizMode: Boolean = false,
     isRandomMode: Boolean = false,
     difficulty: String = "קל",
-    onCorrectAnswer: () -> Unit = {},
+    onCorrectAnswer: (Int) -> Unit = {},
     userId: String = "guest"
 ) {
     val context = LocalContext.current
@@ -88,14 +88,19 @@ fun VideoPlayerScreen(
     var currentClipIndex by remember { mutableIntStateOf(0) }
     
     // Progress Saving and Resuming
-    val videoFileName = remember(videoUri) {
+    val currentClip = remember(clips, currentClipIndex) {
+        if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex] else null
+    }
+    
+    val videoFileName = remember(currentClip?.videoUri ?: videoUri) {
+        val targetUri = currentClip?.videoUri ?: videoUri
         try {
-            if (videoUri.scheme == "file") {
-                File(videoUri.path!!).name
-            } else if (videoUri.scheme == "content") {
-                videoUri.lastPathSegment ?: videoUri.toString().hashCode().toString()
+            if (targetUri.scheme == "file") {
+                File(targetUri.path!!).name
+            } else if (targetUri.scheme == "content") {
+                targetUri.lastPathSegment ?: targetUri.toString().hashCode().toString()
             } else {
-                videoUri.toString().hashCode().toString()
+                targetUri.toString().hashCode().toString()
             }
         } catch (e: Exception) {
             "unknown"
@@ -154,6 +159,9 @@ fun VideoPlayerScreen(
     var isSessionComplete by remember { mutableStateOf(false) }
     var correctCount by remember { mutableIntStateOf(0) }
     var totalAttempted by remember { mutableIntStateOf(0) }
+    var comboCount by remember { mutableIntStateOf(0) }
+    var heartsLeft by remember { mutableIntStateOf(3) }
+    var isAutoAdvance by remember { mutableStateOf(false) }
 
     var hiddenIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
     var wordsList by remember(currentClipIndex) { mutableStateOf(listOf<String>()) }
@@ -191,6 +199,25 @@ fun VideoPlayerScreen(
     var subtitleIsBold by remember { mutableStateOf(sharedPrefs.getBoolean("sub_is_bold", true)) }
     var subtitleFontFamily by remember { mutableStateOf(sharedPrefs.getString("sub_font_family", "SansSerif") ?: "SansSerif") }
     var showStyleDialog by remember { mutableStateOf(false) }
+
+    // Shake and Flash Animation States
+    val shakeOffset = remember { Animatable(0f) }
+    var flashColor by remember { mutableStateOf(Color.Transparent) }
+    
+    // Floating XP State
+    var floatingXP by remember { mutableStateOf<Int?>(null) }
+    val floatingXPAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        SoundManager.init(context)
+    }
+    
+    DisposableEffect(Unit) {
+        onDispose {
+            // We don't release SoundManager here if it's a singleton used elsewhere,
+            // but for now let's assume it's okay to keep it alive or release it.
+        }
+    }
 
     val currentFontFamily = when(subtitleFontFamily) {
         "Serif" -> androidx.compose.ui.text.font.FontFamily.Serif
@@ -328,10 +355,18 @@ fun VideoPlayerScreen(
 
             exoPlayer.setMediaItem(mediaItemBuilder.build(), startPos)
             exoPlayer.prepare()
+            exoPlayer.playWhenReady = false // Wait for seek then play
             
             exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
                 .setPreferredAudioLanguage(preferredAudioLang)
                 .build()
+
+            // Bug #5: Wait until player is ready before seeking
+            var waited = 0
+            while (exoPlayer.playbackState != androidx.media3.common.Player.STATE_READY && waited < 5000) {
+                delay(50)
+                waited += 50
+            }
         } else if (clips != null && currentClipIndex < clips.size) {
             // Same video, but check if we need to seek to a different clip
             val currentPos = exoPlayer.currentPosition
@@ -669,11 +704,13 @@ fun VideoPlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .border(2.dp, borderColor, RoundedCornerShape(12.dp)),
+                        .offset(x = shakeOffset.value.dp)
+                        .border(2.dp, if (flashColor != Color.Transparent) flashColor else borderColor, RoundedCornerShape(12.dp)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    val text = currentClip.text
-                    val isRtl = detectedLanguage == "עברית"
+                    Box(modifier = Modifier.background(flashColor.copy(alpha = 0.1f))) {
+                        val text = currentClip.text
+                        val isRtl = detectedLanguage == "עברית"
                     val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
                     
                     CompositionLocalProvider(
@@ -820,7 +857,22 @@ fun VideoPlayerScreen(
                     LaunchedEffect(isChecked) {
                         if (allCorrect) {
                             correctCount++
-                            onCorrectAnswer()
+                            comboCount++
+                            val multiplier = when {
+                                comboCount >= 10 -> 10
+                                comboCount >= 5 -> 5
+                                comboCount >= 3 -> 3
+                                comboCount >= 2 -> 2
+                                else -> 1
+                            }
+                            onCorrectAnswer(multiplier)
+                            SoundManager.playCorrect()
+                            
+                            // Flash Green
+                            flashColor = Color.Green
+                            delay(500)
+                            flashColor = Color.Transparent
+
                             confettiState = listOf(
                                 Party(
                                     speed = 0f,
@@ -833,6 +885,21 @@ fun VideoPlayerScreen(
                                     emitter = Emitter(duration = 100).max(100)
                                 )
                             )
+                        } else {
+                            comboCount = 0
+                            heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
+                            SoundManager.playWrong()
+                            flashColor = Color.Red
+                            
+                            // Shake Animation
+                            repeat(3) {
+                                shakeOffset.animateTo(10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                                shakeOffset.animateTo(-10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                            }
+                            shakeOffset.animateTo(0f)
+                            
+                            delay(500)
+                            flashColor = Color.Transparent
                         }
                     }
 

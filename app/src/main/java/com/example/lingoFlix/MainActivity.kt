@@ -152,6 +152,22 @@ class MainActivity : ComponentActivity() {
     LaunchedEffect(linkedToRandomPool) {
         sharedPrefs.edit().putStringSet("linked_videos", HashSet(linkedToRandomPool)).apply()
     }
+
+    // Bug #6: Cleanup stale entries from random pool
+    LaunchedEffect(Unit) {
+        val videoDir = File(context.filesDir, "videos")
+        if (videoDir.exists()) {
+            val existingRelativePaths = videoDir.walkTopDown()
+                .filter { !it.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { ext -> it.name.endsWith(".$ext", ignoreCase = true) } }
+                .map { it.relativeTo(videoDir).path }
+                .toSet()
+            
+            val cleanedPool = linkedToRandomPool.filter { existingRelativePaths.contains(it) }.toSet()
+            if (cleanedPool.size != linkedToRandomPool.size) {
+                linkedToRandomPool = cleanedPool
+            }
+        }
+    }
     LaunchedEffect(favoriteClips) {
         sharedPrefs.edit().putStringSet("favorite_clips", HashSet(favoriteClips)).apply()
     }
@@ -373,6 +389,7 @@ class MainActivity : ComponentActivity() {
                             
                             // For each video, find its best matching SRT
                             allVideos.forEach { videoFile ->
+                                if (!videoFile.exists()) return@forEach
                                 val bestSrt = FileUtils.findBestSrtForVideo(videoFile)
                                 if (bestSrt != null && bestSrt.exists()) {
                                     videosWithSrt++
@@ -474,12 +491,13 @@ class MainActivity : ComponentActivity() {
                         isQuizMode = isQuizModeActive,
                         isRandomMode = isRandomModeActive,
                         difficulty = quizDifficulty,
-                        onCorrectAnswer = {
-                            val points = when (quizDifficulty) {
+                        onCorrectAnswer = { multiplier ->
+                            val basePoints = when (quizDifficulty) {
                                 "בינוני" -> 30
                                 "קשה" -> 40
                                 else -> 20 // קל
                             }
+                            val points = basePoints * multiplier
                             statsManager.addXP(points)
                             statsManager.markActivityToday()
                             totalXP = statsManager.getXP()
