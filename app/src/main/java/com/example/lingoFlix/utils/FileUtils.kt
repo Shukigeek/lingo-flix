@@ -165,17 +165,33 @@ object FileUtils {
 
     fun findBestSrtForVideo(videoFile: File): File? {
         if (videoFile.isDirectory) return null
-        val folder = videoFile.parentFile ?: return null
-        val srtFiles = folder.listFiles()?.filter { it.extension.lowercase() == "srt" } ?: return null
         
-        // 1. Exact match (case insensitive)
+        // 1. Look in the same folder as the video
+        val folder = videoFile.parentFile ?: return null
+        val srtFiles = folder.listFiles()?.filter { it.extension.lowercase() == "srt" } ?: emptyList()
+        
+        // 1a. Exact match
         srtFiles.find { it.nameWithoutExtension.equals(videoFile.nameWithoutExtension, ignoreCase = true) }?.let { return it }
         
-        // 2. Contains match (e.g. "Friends S01.mp4" matches "Friends.srt")
-        return srtFiles.find { 
+        // 1b. Contains match
+        srtFiles.find { 
             videoFile.nameWithoutExtension.contains(it.nameWithoutExtension, ignoreCase = true) ||
             it.nameWithoutExtension.contains(videoFile.nameWithoutExtension, ignoreCase = true)
+        }?.let { return it }
+
+        // 2. If video is inside a package folder, look in the parent folder too
+        val grandParent = folder.parentFile
+        if (grandParent != null && grandParent.name == "videos") {
+            val parentSrtFiles = grandParent.listFiles()?.filter { it.extension.lowercase() == "srt" } ?: emptyList()
+            
+            // Exact match in parent
+            parentSrtFiles.find { it.nameWithoutExtension.equals(videoFile.nameWithoutExtension, ignoreCase = true) }?.let { return it }
+            
+            // Match with folder name (since often video and folder share name)
+            parentSrtFiles.find { it.nameWithoutExtension.equals(folder.name, ignoreCase = true) }?.let { return it }
         }
+
+        return null
     }
 
     /**

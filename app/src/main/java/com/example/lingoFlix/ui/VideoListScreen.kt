@@ -66,6 +66,23 @@ fun VideoListScreen(
     
     val items = remember(currentDir) {
         currentDir.listFiles()?.filter { it.isDirectory || it.extension != "srt" }
+            ?.map { file ->
+                // If it's a directory, check if it's a "video package" (one video file inside)
+                if (file.isDirectory) {
+                    val children = file.listFiles() ?: emptyArray()
+                    val videoFiles = children.filter { child ->
+                        !child.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { ext -> child.name.endsWith(".$ext", ignoreCase = true) }
+                    }
+                    if (videoFiles.size == 1 && children.size <= 3) { // Usually video + srt + maybe something else
+                        videoFiles[0]
+                    } else {
+                        file
+                    }
+                } else {
+                    file
+                }
+            }
+            ?.distinctBy { it.absolutePath }
             ?.sortedWith(compareBy({ !it.isDirectory }, { it.name })) ?: emptyList()
     }
 

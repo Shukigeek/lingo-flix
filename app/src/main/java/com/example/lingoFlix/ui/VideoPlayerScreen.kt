@@ -163,7 +163,6 @@ fun VideoPlayerScreen(
     var totalAttempted by remember { mutableIntStateOf(0) }
     var comboCount by remember { mutableIntStateOf(0) }
     var heartsLeft by remember { mutableIntStateOf(10) }
-    var isAutoAdvance by remember { mutableStateOf(false) }
 
     var hiddenIndices by remember(currentClipIndex) { mutableStateOf(setOf<Int>()) }
     var wordsList by remember(currentClipIndex) { mutableStateOf(listOf<String>()) }
@@ -587,45 +586,28 @@ fun VideoPlayerScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                // First Row: Hearts and Auto-Advance
+                // First Row: Hearts
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Hearts
-                    Row {
-                        repeat(10) { index ->
-                            val isLost = index >= heartsLeft
-                            val scale by animateFloatAsState(if (isLost) 0.8f else 1.2f, label = "heartScale")
-                            val alpha by animateFloatAsState(if (isLost) 0.3f else 1f, label = "heartAlpha")
-                            
-                            Icon(
-                                imageVector = if (isLost) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
-                                contentDescription = "Heart",
-                                tint = if (isLost) Color.Gray else Color.Red,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .scale(scale)
-                                    .alpha(alpha)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                        }
-                    }
-
-                    // Auto-Advance Toggle
-                    IconButton(
-                        onClick = { isAutoAdvance = !isAutoAdvance },
-                        modifier = Modifier.background(
-                            if (isAutoAdvance) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                    ) {
+                    repeat(10) { index ->
+                        val isLost = index >= heartsLeft
+                        val scale by animateFloatAsState(if (isLost) 0.8f else 1.2f, label = "heartScale")
+                        val alpha by animateFloatAsState(if (isLost) 0.3f else 1f, label = "heartAlpha")
+                        
                         Icon(
-                            imageVector = Icons.Default.FastForward,
-                            contentDescription = "Auto Advance",
-                            tint = Color.White
+                            imageVector = if (isLost) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
+                            contentDescription = "Heart",
+                            tint = if (isLost) Color.Gray else Color.Red,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .scale(scale)
+                                .alpha(alpha)
                         )
+                        Spacer(modifier = Modifier.width(2.dp))
                     }
                 }
 
@@ -973,20 +955,8 @@ fun VideoPlayerScreen(
                             // Flash Green
                             flashColor = Color.Green
                             
-                            if (isAutoAdvance) {
-                                delay(1500)
-                                flashColor = Color.Transparent
-                                if (currentClipIndex < clips.size - 1) {
-                                    currentClipIndex++
-                                    userInput = ""
-                                    isChecked = false
-                                } else {
-                                    isSessionComplete = true
-                                }
-                            } else {
-                                delay(500)
-                                flashColor = Color.Transparent
-                            }
+                            delay(500)
+                            flashColor = Color.Transparent
 
                             confettiState = listOf(
                                 Party(
@@ -1013,22 +983,8 @@ fun VideoPlayerScreen(
                             }
                             shakeOffset.animateTo(0f)
                             
-                            if (isAutoAdvance) {
-                                delay(2500)
-                                flashColor = Color.Transparent
-                                if (heartsLeft > 0) {
-                                    if (currentClipIndex < clips.size - 1) {
-                                        currentClipIndex++
-                                        userInput = ""
-                                        isChecked = false
-                                    } else {
-                                        isSessionComplete = true
-                                    }
-                                }
-                            } else {
-                                delay(500)
-                                flashColor = Color.Transparent
-                            }
+                            delay(500)
+                            flashColor = Color.Transparent
                         }
                     }
 

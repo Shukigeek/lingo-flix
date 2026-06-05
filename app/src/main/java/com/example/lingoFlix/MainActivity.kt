@@ -438,16 +438,19 @@ class MainActivity : ComponentActivity() {
                             videoDir.walkTopDown().forEach { file ->
                                 if (!file.isDirectory && file.extension.lowercase() == "srt") {
                                     val videoExtensions = listOf("mp4", "mkv", "avi", "mov", "webm")
+                                    // Try video extensions OR the name without extension (for files with no extension)
                                     val videoFile = videoExtensions.map { ext -> 
                                         File(file.parentFile, "${file.nameWithoutExtension}.$ext") 
-                                    }.firstOrNull { it.exists() }
+                                    }.firstOrNull { it.exists() } ?: File(file.parentFile, file.nameWithoutExtension).takeIf { it.exists() }
                                     
                                     if (videoFile != null) {
                                         val clips = SrtParser.parseSrtFile(file, Uri.fromFile(videoFile))
                                         clips.forEach { clip ->
-                                            // Standardize clipId format
-                                            val clipId = "${videoFile.name}|${clip.startTimeMs}"
-                                            if (favoriteClips.contains(clipId)) {
+                                            // Standardize clipId format - Check both with and without .mp4/etc
+                                            val clipIdWithExt = "${videoFile.name}|${clip.startTimeMs}"
+                                            val clipIdNoExt = "${videoFile.nameWithoutExtension}|${clip.startTimeMs}"
+                                            
+                                            if (favoriteClips.contains(clipIdWithExt) || favoriteClips.contains(clipIdNoExt)) {
                                                 favClipsList.add(clip)
                                             }
                                         }
