@@ -2,24 +2,31 @@ package com.example.lingoFlix.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.R
 import com.example.lingoFlix.ui.components.*
+import java.io.File
 
 @Composable
 fun DashboardScreen(
@@ -27,162 +34,240 @@ fun DashboardScreen(
     onUploadVideo: () -> Unit = {},
     onRandomSentences: () -> Unit = {},
     onFavorites: () -> Unit = {},
+    onVideoSelected: (File) -> Unit = {},
     totalXP: Int = 0,
     currentStreak: Int = 0,
     userName: String = "Lingo Learner"
 ) {
-    // Determine progress based on XP (e.g., 5000 XP per level)
+    val context = LocalContext.current
+    val videoDir = remember { File(context.filesDir, "videos") }
+    val videoProjects = remember(videoDir) {
+        videoDir.listFiles()?.filter { !it.isDirectory && it.extension != "srt" }
+            ?.sortedByDescending { it.lastModified() }
+            ?.take(3) ?: emptyList()
+    }
+    
     val xpInCurrentLevel = totalXP % 1000
     val userProgress = xpInCurrentLevel / 1000f
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // --- Background Image (Friends TV Show) ---
-        // Note: Make sure friends_bg exists in your drawable folder.
-        // I've uncommented this so it actually tries to load the image.
-        Image(
-            painter = painterResource(id = R.drawable.friends),
-            contentDescription = "Friends Background",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.5f // Fade it a bit so buttons stand out
-        )
-        
-        // Gradient Overlay to ensure text readability on top of the image
+    Scaffold(
+        containerColor = Color.Transparent, 
+        floatingActionButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallFloatingActionButton(
+                    onClick = onFavorites,
+                    containerColor = Color(0xFFFFD600),
+                    contentColor = Color.Black,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = "Favorites")
+                }
+                FloatingActionButton(
+                    onClick = onUploadVideo,
+                    containerColor = Color(0xFF58CC02), // DuoGreen
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Upload")
+                }
+            }
+        }
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                        startY = 300f
-                    )
-                )
-        )
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            // --- Top Progress Bar ---
-            Surface(
-                color = Color.Black.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
+                .padding(padding)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
                     modifier = Modifier
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "ההתקדמות שלך",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${(userProgress * 100).toInt()}%",
-                            color = DuoGreen,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                    item {
+                        // User Profile Section
+                        Surface(
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text(
+                                    text = "היי $userName! 👋",
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF4B4B4B)
+                                )
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "רמה ${totalXP / 1000 + 1}",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1CB0F6),
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    Text(
+                                        text = "$xpInCurrentLevel / 1000 XP",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF777777),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                LinearProgressIndicator(
+                                    progress = { userProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(12.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    color = Color(0xFF58CC02),
+                                    trackColor = Color(0xFFE5E5E5),
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ProgressBar(progress = userProgress)
-                }
-            }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(top = 40.dp, bottom = 40.dp)
-            ) {
-                item {
-                    Text(
-                        text = "היי $userName!\nמוכן ללמוד?",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        lineHeight = 38.sp
-                    )
-                }
+                    item {
+                        // Quick Actions Section
+                        Surface(
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.PlayCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1CB0F6),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "הסרטונים האחרונים",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF4B4B4B)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // --- Button to view My Videos ---
-                    DuoButton(
-                        text = "הסרטונים שלי",
-                        onClick = onMyVideos,
-                        color = DuoBlue,
-                        darkColor = DuoBlue.copy(alpha = 0.7f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                                if (videoProjects.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                            .background(Color(0xFFF7F7F7), RoundedCornerShape(16.dp))
+                                            .border(1.dp, Color(0xFFE5E5E5), RoundedCornerShape(16.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Icon(
+                                                imageVector = Icons.Default.VideoLibrary,
+                                                contentDescription = null,
+                                                tint = Color(0xFFAFAFAF),
+                                                modifier = Modifier.size(40.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                "העלה סרטון כדי להתחיל!",
+                                                color = Color(0xFF777777),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        videoProjects.forEach { file ->
+                                            VideoCard(
+                                                file = file,
+                                                onClick = { onVideoSelected(file) }
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(20.dp))
+                                
+                                DuoButton(
+                                    text = "למאגר הסרטונים שלי",
+                                    onClick = onMyVideos,
+                                    color = Color(0xFF1CB0F6),
+                                    darkColor = Color(0xFF1899D6),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                DuoButton(
+                                    text = "משפטים רנדומליים",
+                                    onClick = onRandomSentences,
+                                    color = Color(0xFFCE93D8),
+                                    darkColor = Color(0xFFBA68C8),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // --- Button to upload a video ---
-                    DuoButton(
-                        text = "העלאת סרטון",
-                        onClick = onUploadVideo,
-                        color = DuoGreen, // You can choose a different color if you like
-                        darkColor = DuoDarkGreen,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // --- Button to choose Random Sentences ---
-                    DuoButton(
-                        text = "משפטים רנדומליים",
-                        onClick = onRandomSentences,
-                        color = DuoGreen,
-                        darkColor = DuoDarkGreen,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // --- Button to view Favorites ---
-                    DuoButton(
-                        text = "משפטים מועדפים ⭐",
-                        onClick = onFavorites,
-                        color = Color(0xFFFFC107), // Gold
-                        darkColor = Color(0xFFFFA000),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "הסטטיסטיקה השבועית",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        StatBoxTransparent(
-                            label = "נקודות XP",
-                            value = totalXP.toString(),
-                            icon = Icons.Default.Star,
-                            color = Color(0xFFFFC107),
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatBoxTransparent(
-                            label = "רצף ימים",
-                            value = currentStreak.toString(),
-                            icon = Icons.Default.LocalFireDepartment,
-                            color = Color(0xFFFF9600),
-                            modifier = Modifier.weight(1f)
-                        )
+                    item {
+                        // Stats Section
+                        Surface(
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.BarChart,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF9600),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "הסטטיסטיקה שלך",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF4B4B4B)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    StatBox(
+                                        label = "נקודות XP",
+                                        value = totalXP.toString(),
+                                        icon = Icons.Default.Stars,
+                                        color = Color(0xFFFFD600),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    StatBox(
+                                        label = "רצף ימים",
+                                        value = currentStreak.toString(),
+                                        icon = Icons.Default.LocalFireDepartment,
+                                        color = Color(0xFFFF9600),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -191,7 +276,60 @@ fun DashboardScreen(
 }
 
 @Composable
-fun StatBoxTransparent(
+fun VideoCard(
+    file: File,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFF7F7F7),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E5E5)),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1CB0F6).copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow, 
+                    contentDescription = null, 
+                    tint = Color(0xFF1CB0F6), 
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = file.name,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 16.sp,
+                color = Color(0xFF4B4B4B),
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            
+            Icon(
+                Icons.Default.ChevronLeft, 
+                contentDescription = null, 
+                tint = Color(0xFFAFAFAF), 
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun StatBox(
     label: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -201,12 +339,13 @@ fun StatBoxTransparent(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+        color = Color(0xFFF7F7F7),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E5E5))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
@@ -219,13 +358,13 @@ fun StatBoxTransparent(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = Color(0xFF4B4B4B)
             )
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.7f),
-                fontWeight = FontWeight.Bold
+                color = Color(0xFF777777),
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }

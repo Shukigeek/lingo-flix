@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LingoFlix - ללמוד שפות דרך סרטים</title>
+    <style>
+        :root {
+            --primary-color: #FF9600;
+            --primary-dark: #E68600;
+            --secondary-color: #58CC02;
+            --bg-color: #FFFDF9;
+            --text-color: #3E2723;
+            --card-bg: #FFFFFF;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        header {
+            padding: 80px 0 60px;
+            text-align: center;
+            background: radial-gradient(circle at top left, #FFF5E6 0%, transparent 40%);
+        }
+
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text-color);
+            margin-bottom: 15px;
+            letter-spacing: -1px;
+        }
+
+        h1 span {
+            color: var(--primary-color);
+        }
+
+        .tagline {
+            font-size: 1.4rem;
+            color: #6D4C41;
+            max-width: 700px;
+            margin: 0 auto 40px;
+        }
+
+        /* Buttons */
+        .cta-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 18px 35px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-download {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 150, 0, 0.3);
+        }
+
+        .btn-download:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 150, 0, 0.4);
+        }
+
+        .btn-whatsapp {
+            background-color: #25D366;
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+
+        .btn-whatsapp:hover {
+            background-color: #128C7E;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            text-align: center;
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 20px;
+            background: #FFF5E6;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .feature-card p {
+            color: #795548;
+            font-size: 1rem;
+        }
+
+        /* App Preview */
+        .app-preview {
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .phone-mockup {
+            width: 280px;
+            height: 580px;
+            background: #111;
+            border-radius: 40px;
+            margin: 0 auto;
+            border: 12px solid #222;
+            position: relative;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .phone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 150px;
+            height: 25px;
+            background: #222;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            z-index: 10;
+        }
+
+        .screen-content {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .quiz-box {
+            border: 2px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .heart-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            text-align: center;
+            border-top: 1px solid #EEE;
+            color: #A1887F;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .tagline { font-size: 1.1rem; }
+            header { padding: 60px 0 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <div class="logo">🎬</div>
+            <h1>Lingo<span>Flix</span></h1>
+            <p class="tagline">הופכים את הסרטים והסדרות האהובים עליכם לשיעור השפה הטוב ביותר בעולם. ללמוד אנגלית, ספרדית ועוד - פשוט על ידי צפייה.</p>
+
+            <div class="cta-group">
+                <a href="https://github.com/Shukigeek/lingo-flix/releases/download/first-prototype/app-release.apk" class="btn btn-download">
+                    <span>הורדת APK</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+                <a href="https://wa.me/972XXXXXXXXX?text=שלום,%20אני%20מעוניין%20במידע%20על%20LingoFlix" class="btn btn-whatsapp">
+                    <span>צור קשר ב-WhatsApp</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.347-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-2.578l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.87 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.87 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.41 0 .01 5.399.007 12.042c0 2.123.554 4.197 1.607 6.037L0 24l6.105-1.602a11.834 11.834 0 005.937 1.644h.005c6.637 0 12.037-5.399 12.04-12.042.003-3.22-1.248-6.248-3.52-8.511z"/></svg>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h3>למידה אינטראקטיבית</h3>
+                <p>השלימו את המילים החסרות בכתוביות בזמן הצפייה. הדרך היעילה ביותר לשפר את אוצר המילים.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>ניתוח AI (X-Ray)</h3>
+                <p>משהו לא ברור? לחצו על כפתור המוח וה-AI יסביר לכם את הדקדוק וההקשר של כל משפט.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔥</div>
+                <h3>משחוק (Gamification)</h3>
+                <p>צברו XP, שמרו על רצף יומי (Streak) ואל תאבדו את הלבבות שלכם!</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📂</div>
+                <h3>העלאת קבצים חופשית</h3>
+                <p>העלו סרטונים וקבצי SRT משלכם והתחילו לתרגל מכל תוכן שתרצו.</p>
+            </div>
+        </section>
+
+        <section class="app-preview">
+            <div class="phone-mockup">
+                <div class="screen-content">
+                    <div class="heart-row">
+                        <span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span>
+                    </div>
+                    <div style="background:#333; width:100%; height:150px; border-radius:8px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; color:#666">
+                        Video Player
+                    </div>
+                    <div class="quiz-box">
+                        I ____ don't understand .
+                    </div>
+                    <div style="background:var(--primary-color); padding:10px 20px; border-radius:8px; font-weight:bold; font-size:12px">
+                        הקלד תשובה...
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 LingoFlix. כל הזכויות שמורות.</p>
+            <p style="margin-top: 10px; font-size: 0.8rem;">האפליקציה פותחה למטרות לימודיות בלבד.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,215 @@
+package com.example.lingoFlix.utils
+
+import android.content.ContentValues
+import android.content.Context
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+object FileUtils {
+    fun getFileName(context: Context, uri: Uri): String? {
+        if (uri.scheme == "file") {
+            return uri.lastPathSegment
+        }
+        var name: String? = null
+        try {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1) {
+                        val displayName = it.getString(nameIndex)
+                        if (!displayName.isNullOrBlank()) {
+                            name = displayName
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FileUtils", "Error getting file name from cursor", e)
+        }
+
+        // If name is still null or just a number (common for some providers), try to get it from URI path
+        if (name == null || name!!.matches(Regex("\\d+"))) {
+            val path = uri.path
+            if (path != null) {
+                val lastSegment = path.substringAfterLast("/")
+                if (lastSegment.isNotBlank() && lastSegment.contains(".")) {
+                    name = lastSegment
+                }
+            }
+        }
+        
+        // Final fallback: if it's still null or just a number, use the last path segment if it looks like a name
+        val finalName = name
+        if (finalName == null || finalName.matches(Regex("\\d+"))) {
+            uri.lastPathSegment?.let { 
+                if (it.isNotBlank() && !it.matches(Regex("\\d+"))) {
+                    name = it
+                }
+            }
+        }
+
+        return name
+    }
+
+    fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String): File? {
+        return try {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val videoDir = File(context.filesDir, "videos")
+            
+            // Create a subfolder based on the video name (without extension)
+            val baseName = if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
+            val targetDir = File(videoDir, baseName)
+            if (!targetDir.exists()) targetDir.mkdirs()
+            
+            val targetFile = File(targetDir, fileName)
+            val outputStream = FileOutputStream(targetFile)
+            
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            targetFile
+        } catch (e: Exception) {
+            Log.e("FileUtils", "Error saving video", e)
+            null
+        }
+    }
+
+    fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, videoName: String? = null): File? {
+        return try {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val videoDir = File(context.filesDir, "videos")
+            
+            // Determine the subfolder. If videoName is provided, use it. 
+            // Otherwise use the subtitle's name.
+            val baseName = if (videoName != null) {
+                if (videoName.contains(".")) videoName.substringBeforeLast(".") else videoName
+            } else {
+                if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
+            }
+            
+            val targetDir = File(videoDir, baseName)
+            if (!targetDir.exists()) targetDir.mkdirs()
+            
+            // If linked to a video, we might want to rename the SRT to match the video name exactly
+            val targetFileName = if (videoName != null) {
+                val videoBase = if (videoName.contains(".")) videoName.substringBeforeLast(".") else videoName
+                "$videoBase.srt"
+            } else {
+                fileName
+            }
+
+            val targetFile = File(targetDir, targetFileName)
+            val outputStream = FileOutputStream(targetFile)
+            
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            targetFile
+        } catch (e: Exception) {
+            Log.e("FileUtils", "Error saving subtitle", e)
+            null
+        }
+    }
+
+    fun getVideoDuration(context: Context, file: File): String? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, Uri.fromFile(file))
+            val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val timeInMillis = time?.toLong() ?: 0L
+            val hours = TimeUnit.MILLISECONDS.toHours(timeInMillis)
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(timeInMillis) % 60
+            val seconds = TimeUnit.MILLISECONDS.toSeconds(timeInMillis) % 60
+            if (hours > 0) {
+                String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+            } else {
+                String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+            }
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
+        }
+    }
+
+    fun exportVideoToMovies(context: Context, file: File) {
+        val values = ContentValues().apply {
+            put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+            put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+            put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+            put(MediaStore.Video.Media.RELATIVE_PATH, "Movies")
+        }
+
+        val uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        uri?.let {
+            context.contentResolver.openOutputStream(it).use { outputStream ->
+                file.inputStream().use { inputStream ->
+                    inputStream.copyTo(outputStream!!)
+                }
+            }
+        }
+    }
+
+    fun findBestSrtForVideo(videoFile: File): File? {
+        if (videoFile.isDirectory) return null
+        
+        // 1. Look in the same folder as the video
+        val folder = videoFile.parentFile ?: return null
+        val srtFiles = folder.listFiles()?.filter { it.extension.lowercase() == "srt" } ?: emptyList()
+        
+        // 1a. Exact match
+        srtFiles.find { it.nameWithoutExtension.equals(videoFile.nameWithoutExtension, ignoreCase = true) }?.let { return it }
+        
+        // 1b. Contains match
+        srtFiles.find { 
+            videoFile.nameWithoutExtension.contains(it.nameWithoutExtension, ignoreCase = true) ||
+            it.nameWithoutExtension.contains(videoFile.nameWithoutExtension, ignoreCase = true)
+        }?.let { return it }
+
+        // 2. If video is inside a package folder, look in the parent folder too
+        val grandParent = folder.parentFile
+        if (grandParent != null && grandParent.name == "videos") {
+            val parentSrtFiles = grandParent.listFiles()?.filter { it.extension.lowercase() == "srt" } ?: emptyList()
+            
+            // Exact match in parent
+            parentSrtFiles.find { it.nameWithoutExtension.equals(videoFile.nameWithoutExtension, ignoreCase = true) }?.let { return it }
+            
+            // Match with folder name (since often video and folder share name)
+            parentSrtFiles.find { it.nameWithoutExtension.equals(folder.name, ignoreCase = true) }?.let { return it }
+        }
+
+        return null
+    }
+
+    /**
+     * Ensures the SRT file is in UTF-8 for ExoPlayer, which can struggle with other encodings.
+     * Returns a temporary file if conversion was needed.
+     */
+    fun getUtf8SrtFile(context: Context, srtFile: File): File {
+        return try {
+            val bytes = srtFile.readBytes()
+            val encoding = SrtParser.detectEncoding(bytes)
+            if (encoding == Charsets.UTF_8) return srtFile
+            
+            val content = String(bytes, encoding)
+            val tempFile = File(context.cacheDir, "temp_sub_${srtFile.nameWithoutExtension}.srt")
+            tempFile.writeText(content, Charsets.UTF_8)
+            tempFile
+        } catch (e: Exception) {
+            srtFile
+        }
+    }
+}
