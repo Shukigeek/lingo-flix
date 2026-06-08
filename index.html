@@ -12,7 +12,7 @@
             --bg-color: #FFFDF9;
             --text-color: #3E2723;
             --card-bg: #FFFFFF;
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
         }
 
         * {
@@ -25,41 +25,41 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.6;
+            line-height: 1.4;
             overflow-x: hidden;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 15px;
         }
 
         /* Hero Section */
         header {
-            padding: 80px 0 60px;
+            padding: 40px 0 30px;
             text-align: center;
             background: radial-gradient(circle at top left, #FFF5E6 0%, transparent 40%);
         }
 
         .logo {
-            font-size: 80px;
-            margin-bottom: 20px;
+            font-size: 50px;
+            margin-bottom: 10px;
             display: inline-block;
             animation: bounce 2s infinite;
         }
 
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-5px); }
         }
 
         h1 {
-            font-size: 3.5rem;
+            font-size: 2.2rem;
             font-weight: 800;
             color: var(--text-color);
-            margin-bottom: 15px;
-            letter-spacing: -1px;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
         }
 
         h1 span {
@@ -67,119 +67,117 @@
         }
 
         .tagline {
-            font-size: 1.4rem;
+            font-size: 1.1rem;
             color: #6D4C41;
-            max-width: 700px;
-            margin: 0 auto 40px;
+            max-width: 600px;
+            margin: 0 auto 25px;
         }
 
         /* Buttons */
         .cta-group {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
         }
 
         .btn {
-            padding: 18px 35px;
+            padding: 12px 25px;
             border-radius: 50px;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             font-weight: bold;
             text-decoration: none;
             transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             cursor: pointer;
             border: none;
         }
 
+        .btn svg { width: 20px; height: 20px; }
+
         .btn-download {
             background-color: var(--primary-color);
             color: white;
-            box-shadow: 0 4px 15px rgba(255, 150, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(255, 150, 0, 0.2);
         }
 
         .btn-download:hover {
             background-color: var(--primary-dark);
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(255, 150, 0, 0.4);
+            transform: translateY(-2px);
         }
 
-        .btn-whatsapp {
-            background-color: #25D366;
+        .btn-github {
+            background-color: #24292e;
             color: white;
-            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+            box-shadow: 0 4px 12px rgba(36, 41, 46, 0.2);
         }
 
-        .btn-whatsapp:hover {
-            background-color: #128C7E;
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
+        .btn-github:hover {
+            background-color: #000;
+            transform: translateY(-2px);
         }
 
-        /* Features Section */
-        .features {
-            padding: 100px 0;
+        /* Features & Preview Grid */
+        .main-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            padding: 20px 0;
+            align-items: start;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
         }
 
         .feature-card {
             background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
+            padding: 20px;
+            border-radius: 16px;
             box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
             text-align: center;
-            border: 1px solid rgba(0,0,0,0.03);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px);
+            border: 1px solid rgba(0,0,0,0.02);
         }
 
         .feature-icon {
-            font-size: 40px;
-            margin-bottom: 20px;
+            font-size: 28px;
+            margin-bottom: 10px;
             background: #FFF5E6;
-            width: 80px;
-            height: 80px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 20px;
+            border-radius: 12px;
             margin-left: auto;
             margin-right: auto;
         }
 
         .feature-card h3 {
-            margin-bottom: 15px;
-            font-size: 1.5rem;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
         }
 
         .feature-card p {
             color: #795548;
-            font-size: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.3;
         }
 
         /* App Preview */
-        .app-preview {
-            padding: 60px 0;
-            text-align: center;
-        }
-
         .phone-mockup {
-            width: 280px;
-            height: 580px;
+            width: 200px;
+            height: 410px;
             background: #111;
-            border-radius: 40px;
+            border-radius: 30px;
             margin: 0 auto;
-            border: 12px solid #222;
+            border: 8px solid #222;
             position: relative;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -190,11 +188,11 @@
             content: '';
             position: absolute;
             top: 0;
-            width: 150px;
-            height: 25px;
+            width: 100px;
+            height: 18px;
             background: #222;
-            border-bottom-left-radius: 20px;
-            border-bottom-right-radius: 20px;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
             z-index: 10;
         }
 
@@ -207,37 +205,91 @@
             align-items: center;
             justify-content: center;
             color: white;
-            padding: 20px;
+            padding: 10px;
+            transform: scale(0.9);
         }
 
         .quiz-box {
-            border: 2px solid var(--primary-color);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+            border: 1.5px solid var(--primary-color);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
             width: 100%;
-            font-size: 14px;
+            font-size: 11px;
+            text-align: center;
         }
 
         .heart-row {
             display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
+            gap: 3px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        /* Suggestion Form */
+        .comments-section {
+            padding: 30px 0;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+        }
+
+        .comments-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            color: var(--text-color);
+        }
+
+        .suggestion-form {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1.5px solid #EEE;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            outline: none;
         }
 
         /* Footer */
         footer {
-            padding: 60px 0;
+            padding: 20px 0;
             text-align: center;
             border-top: 1px solid #EEE;
             color: #A1887F;
+            font-size: 0.8rem;
         }
 
         /* Responsive */
         @media (max-width: 768px) {
-            h1 { font-size: 2.5rem; }
-            .tagline { font-size: 1.1rem; }
-            header { padding: 60px 0 40px; }
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .app-preview { order: -1; margin-bottom: 20px; }
+            h1 { font-size: 1.8rem; }
+            .logo { font-size: 40px; }
         }
     </style>
 </head>
@@ -247,71 +299,84 @@
         <div class="container">
             <div class="logo">🎬</div>
             <h1>Lingo<span>Flix</span></h1>
-            <p class="tagline">הופכים את הסרטים והסדרות האהובים עליכם לשיעור השפה הטוב ביותר בעולם. ללמוד אנגלית, ספרדית ועוד - פשוט על ידי צפייה.</p>
+            <p class="tagline">הופכים סרטים לשיעור שפה. ללמוד אנגלית, ספרדית ועוד - פשוט על ידי צפייה.</p>
 
             <div class="cta-group">
-                <a href="https://github.com/Shukigeek/lingo-flix/releases/download/first-prototype/app-release.apk" class="btn btn-download">
+                <a href="https://github.com/Shukigeek/lingo-flix/releases/download/v1.1/app-release.apk" class="btn btn-download">
                     <span>הורדת APK</span>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 </a>
-                <a href="https://wa.me/972XXXXXXXXX?text=שלום,%20אני%20מעוניין%20במידע%20על%20LingoFlix" class="btn btn-whatsapp">
-                    <span>צור קשר ב-WhatsApp</span>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.347-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-2.578l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.87 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.87 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.41 0 .01 5.399.007 12.042c0 2.123.554 4.197 1.607 6.037L0 24l6.105-1.602a11.834 11.834 0 005.937 1.644h.005c6.637 0 12.037-5.399 12.04-12.042.003-3.22-1.248-6.248-3.52-8.511z"/></svg>
+                <a href="https://github.com/Shukigeek/lingo-flix/issues/new" class="btn btn-github">
+                    <span>דווח/הצע (GitHub)</span>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 </a>
             </div>
         </div>
     </header>
 
     <div class="container">
-        <section class="features">
-            <div class="feature-card">
-                <div class="feature-icon">🧠</div>
-                <h3>למידה אינטראקטיבית</h3>
-                <p>השלימו את המילים החסרות בכתוביות בזמן הצפייה. הדרך היעילה ביותר לשפר את אוצר המילים.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>ניתוח AI (X-Ray)</h3>
-                <p>משהו לא ברור? לחצו על כפתור המוח וה-AI יסביר לכם את הדקדוק וההקשר של כל משפט.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔥</div>
-                <h3>משחוק (Gamification)</h3>
-                <p>צברו XP, שמרו על רצף יומי (Streak) ואל תאבדו את הלבבות שלכם!</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📂</div>
-                <h3>העלאת קבצים חופשית</h3>
-                <p>העלו סרטונים וקבצי SRT משלכם והתחילו לתרגל מכל תוכן שתרצו.</p>
-            </div>
-        </section>
+        <div class="main-grid">
+            <section class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>למידה אינטראקטיבית</h3>
+                    <p>השלימו מילים חסרות בכתוביות בזמן הצפייה.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📵</div>
+                    <h3>ניתוח אופליין מלא</h3>
+                    <p>תרגום והסברים על מילים עובדים גם ללא חיבור לאינטרנט.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⏱️</div>
+                    <h3>בדיקת סנכרון מהירה</h3>
+                    <p>כלי מובנה לוודא שהכתוביות יושבות בול על הסרטון בכל רגע.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📂</div>
+                    <h3>קבצים חופשיים</h3>
+                    <p>העלו סרטונים וקבצי SRT משלכם לתרגול חופשי.</p>
+                </div>
+            </section>
 
-        <section class="app-preview">
-            <div class="phone-mockup">
-                <div class="screen-content">
-                    <div class="heart-row">
-                        <span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span><span style="color:red">❤️</span>
-                    </div>
-                    <div style="background:#333; width:100%; height:150px; border-radius:8px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; color:#666">
-                        Video Player
-                    </div>
-                    <div class="quiz-box">
-                        I ____ don't understand .
-                    </div>
-                    <div style="background:var(--primary-color); padding:10px 20px; border-radius:8px; font-weight:bold; font-size:12px">
-                        הקלד תשובה...
+            <section class="app-preview">
+                <div class="phone-mockup">
+                    <div class="screen-content">
+                        <div class="heart-row">❤️❤️❤️❤️❤️</div>
+                        <div style="background:#333; width:100%; height:100px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; justify-content:center; color:#666; font-size: 10px;">
+                            Video Player
+                        </div>
+                        <div class="quiz-box">I ____ don't understand.</div>
+                        <div style="background:var(--primary-color); padding:6px 15px; border-radius:6px; font-weight:bold; font-size:10px">הקלד תשובה...</div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
     </div>
+
+    <section class="comments-section">
+        <div class="comments-container">
+            <h2 class="section-title">הצעות ושיפורים ✨</h2>
+            <form action="https://formspree.io/f/xbdegjow" method="POST" class="suggestion-form">
+                <div class="form-group">
+                    <input type="text" id="name" name="name" class="form-input" placeholder="שם (אופציונלי)">
+                </div>
+                <div class="form-group">
+                    <textarea id="suggestion" name="message" class="form-input" rows="3" required placeholder="מה כדאי להוסיף או לשפר?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-download" style="width: 100%; justify-content: center; padding: 10px;">שלח הצעה</button>
+            </form>
+        </div>
+    </section>
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 LingoFlix. כל הזכויות שמורות.</p>
-            <p style="margin-top: 10px; font-size: 0.8rem;">האפליקציה פותחה למטרות לימודיות בלבד.</p>
+            <p>&copy; 2024 LingoFlix. פותח למטרות לימודיות.</p>
         </div>
     </footer>
 
 </body>
 </html>
+
+
+

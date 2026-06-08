@@ -10,17 +10,9 @@ object SecurityUtils {
     private const val KEY_GEMINI_API = "gemini_api_key_"
 
     fun getEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        // Since we are having issues with key persistence, let's use a standard Prefs for the API key 
+        // until we stabilize the encryption issues. 
+        return context.getSharedPreferences("user_api_keys", Context.MODE_PRIVATE)
     }
 
     fun saveUserApiKey(context: Context, userId: String, apiKey: String) {

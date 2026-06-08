@@ -15,8 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.lingoFlix.utils.SecurityUtils
-import com.google.ai.client.generativeai.GenerativeModel
+import com.example.lingoFlix.utils.OfflineTranslator
 import android.content.Context
 
 @Composable
@@ -69,18 +68,23 @@ fun DifficultySelectionDialog(onDismiss: () -> Unit, onStart: (String, String) -
 }
 
 @Composable
-fun XRayDialog(line: String, onDismiss: () -> Unit, userId: String = "guest") {
+fun XRayDialog(
+    line: String, 
+    missingWords: String = "", 
+    sourceLang: String = "אנגלית",
+    onDismiss: () -> Unit, 
+    userId: String = "guest"
+) {
     val context = LocalContext.current
     var analysisResult by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var isFromCache by remember { mutableStateOf(false) }
 
-    val apiKey = remember(userId) { SecurityUtils.getUserApiKey(context, userId) ?: "" }
-
-    LaunchedEffect(line) {
+    LaunchedEffect(line, missingWords) {
+        val cacheKey = "off_${line}_$missingWords"
         val cachePrefs = context.getSharedPreferences("xray_cache_$userId", Context.MODE_PRIVATE)
-        val cached = cachePrefs.getString(line, null)
+        val cached = cachePrefs.getString(cacheKey, null)
         
         if (cached != null) {
             analysisResult = cached
@@ -89,38 +93,22 @@ fun XRayDialog(line: String, onDismiss: () -> Unit, userId: String = "guest") {
             return@LaunchedEffect
         }
 
-        if (apiKey.isBlank()) {
-            error = "נא להזין API KEY בהגדרות כדי להשתמש ב-AI X-Ray"
-            isLoading = false
-            return@LaunchedEffect
-        }
-        
         try {
-            val generativeModel = GenerativeModel(
-                modelName = "gemini-1.5-flash",
-                apiKey = apiKey
-            )
-            val prompt = """
-                Analyze this sentence from a movie: "$line"
-                Provide the following in Hebrew (formatted with Markdown):
-                1. Natural Hebrew translation.
-                2. Breakdown of key words: Translation, Part of Speech (noun, verb, etc.), and Synonyms.
-                3. For verbs, provide basic conjugations (Past, Present, Future).
-                4. Examples of where else these words are used.
-                Keep it concise and clear.
-            """.trimIndent()
-            
-            val response = generativeModel.generateContent(prompt)
-            val resultText = response.text
-            analysisResult = resultText
-            
-            if (resultText != null) {
-                cachePrefs.edit().putString(line, resultText).apply()
+            val langCode = OfflineTranslator.mapLanguage(sourceLang)
+            val resultText = if (missingWords.isNotEmpty()) {
+                OfflineTranslator.getWordInfo(missingWords, langCode)
+            } else {
+                val translation = OfflineTranslator.translate(line, langCode)
+                "**תרגום:**\n$translation"
             }
             
+            analysisResult = resultText
+            if (resultText != null) {
+                cachePrefs.edit().putString(cacheKey, resultText).apply()
+            }
             isLoading = false
         } catch (e: Exception) {
-            error = "שגיאה בחיבור ל-AI: ${e.localizedMessage}\nוודא שיש אינטרנט והמפתח תקין."
+            error = "שגיאה: ${e.localizedMessage}\nוודא שיש חיבור להורדת חבילת השפה בשימוש ראשון."
             isLoading = false
         }
     }
@@ -128,69 +116,32 @@ fun XRayDialog(line: String, onDismiss: () -> Unit, userId: String = "guest") {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Subtitle AI X-Ray", style = MaterialTheme.typography.headlineSmall)
-                }
-                if (isFromCache) {
-                    Surface(color = Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
-                        Text("Cached", modifier = Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.labelSmall)
-                    }
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Psychology, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Offline Analysis", style = MaterialTheme.typography.headlineSmall)
             }
         },
         text = {
-            Box(modifier = Modifier.heightIn(max = 450.dp).fillMaxWidth()) {
+            Box(modifier = Modifier.heightIn(max = 300.dp).fillMaxWidth()) {
                 if (isLoading) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("מנתח את המשפט בעזרת AI...")
+                        Text("מנתח (אופליין)...", modifier = Modifier.padding(top = 8.dp))
                     }
                 } else if (error != null) {
                     Text(error!!, color = Color.Red)
                 } else {
                     LazyColumn {
                         item {
-                            Text(
-                                text = analysisResult ?: "לא התקבל ניתוח",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Text(text = analysisResult ?: "אין מידע")
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("הבנתי!")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(16.dp)
+            Button(onClick = onDismiss) { Text("הבנתי") }
+        }
     )
-}
-
-@Composable
-fun XRaySection(title: String, content: String) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = content,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        HorizontalDivider(modifier = Modifier.padding(top = 8.dp).alpha(0.1f))
-    }
 }

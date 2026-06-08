@@ -173,6 +173,9 @@ fun VideoPlayerScreen(
     // X-Ray State
     var showXRay by remember { mutableStateOf(false) }
     var xRayLine by remember { mutableStateOf("") }
+    var xRayMissingWords by remember { mutableStateOf("") }
+    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
+    var showSyncTest by remember { mutableStateOf(false) }
     
     // Voice Input State
     val voiceLauncher = rememberLauncherForActivityResult(
@@ -322,6 +325,11 @@ fun VideoPlayerScreen(
         }
     }
     
+    // Handle Speed Change
+    LaunchedEffect(playbackSpeed) {
+        exoPlayer.setPlaybackSpeed(playbackSpeed)
+    }
+
     // Handle Video Change and Seeking
     LaunchedEffect(videoUri, clips, currentClipIndex) {
         val targetUri = if (clips != null && currentClipIndex < clips.size) {
@@ -528,8 +536,44 @@ fun VideoPlayerScreen(
     if (showXRay) {
         XRayDialog(
             line = xRayLine,
+            missingWords = xRayMissingWords,
+            sourceLang = detectedLanguage,
             onDismiss = { showXRay = false },
             userId = userId
+        )
+    }
+
+    if (showSyncTest) {
+        AlertDialog(
+            onDismissRequest = { showSyncTest = false },
+            title = { Text("בדיקת סנכרון כתוביות") },
+            text = {
+                Column {
+                    Text("האם הכתוביות תואמות לסרטון?")
+                    Text("נבדוק 3 נקודות זמן שונות.", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showSyncTest = false }) {
+                    Text("הבנתי")
+                }
+            },
+            dismissButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { 
+                        exoPlayer.seekTo((exoPlayer.duration * 0.1).toLong())
+                        exoPlayer.play()
+                    }) { Text("בדוק התחלה (10%)") }
+                    Button(onClick = { 
+                        exoPlayer.seekTo((exoPlayer.duration * 0.5).toLong())
+                        exoPlayer.play()
+                    }) { Text("בדוק אמצע (50%)") }
+                    Button(onClick = { 
+                        exoPlayer.seekTo((exoPlayer.duration * 0.9).toLong())
+                        exoPlayer.play()
+                    }) { Text("בדוק סוף (90%)") }
+                }
+            }
         )
     }
 
@@ -667,6 +711,31 @@ fun VideoPlayerScreen(
                         Icon(Icons.Default.Palette, contentDescription = "Subtitle Style", tint = Color.White)
                     }
                     
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    IconButton(
+                        onClick = { showSyncTest = true },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = "Sync Test", tint = Color.White)
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    IconButton(
+                        onClick = { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f },
+                        modifier = Modifier.background(
+                            if (playbackSpeed < 1.0f) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
+                            shape = MaterialTheme.shapes.small
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (playbackSpeed < 1.0f) Icons.Default.SlowMotionVideo else Icons.Default.PlayCircle, 
+                            contentDescription = "Playback Speed", 
+                            tint = Color.White
+                        )
+                    }
+
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     IconButton(
@@ -878,6 +947,9 @@ fun VideoPlayerScreen(
                     IconButton(
                         onClick = { 
                             xRayLine = currentClip.text
+                            xRayMissingWords = if (isQuizMode) {
+                                hiddenIndices.map { wordsList[it] }.joinToString(" ")
+                            } else ""
                             showXRay = true 
                         },
                         modifier = Modifier
@@ -912,25 +984,7 @@ fun VideoPlayerScreen(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferredAudioLang)
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
-                                    // Try to prefer offline recognition if available
-                                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                                }
-                                try {
-                                    voiceLauncher.launch(intent)
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "זיהוי קולי לא זמין", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.secondary, shape = RoundedCornerShape(8.dp))
-                        ) {
-                            Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color.White)
-                        }
+                        // Mic button removed for now as requested
                     }
                 } else if (isQuizMode && isChecked) {
                     val hiddenWords = wordsList.filterIndexed { index, _ -> hiddenIndices.contains(index) }.joinToString(" ")
@@ -950,7 +1004,7 @@ fun VideoPlayerScreen(
                                 else -> 1
                             }
                             onCorrectAnswer(multiplier)
-                            SoundManager.playCorrect()
+                    // SoundManager.playCorrect()
                             
                             // Flash Green
                             flashColor = Color.Green
@@ -973,7 +1027,7 @@ fun VideoPlayerScreen(
                         } else {
                             comboCount = 0
                             heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
-                            SoundManager.playWrong()
+                    // SoundManager.playWrong()
                             flashColor = Color.Red
                             
                             // Shake Animation

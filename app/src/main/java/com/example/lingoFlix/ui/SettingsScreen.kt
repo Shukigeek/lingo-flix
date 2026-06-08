@@ -20,6 +20,7 @@ fun SettingsScreen(
     onSaveApiKey: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var apiKey by remember { mutableStateOf(currentApiKey) }
 
     Scaffold(
@@ -41,53 +42,40 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "הגדרות AI (Gemini)",
+                text = "הגדרות אפליקציה",
                 style = MaterialTheme.typography.titleLarge
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                label = { Text("Gemini API Key") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
-                supportingText = { Text("המפתח נשמר בצורה מוצפנת על המכשיר שלך בלבד") }
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Button(
-                onClick = { onSaveApiKey(apiKey) },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("שמור מפתח")
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("איך להשיג מפתח?", style = MaterialTheme.typography.titleMedium)
+                        Text("מידע על הניתוח", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "1. היכנס ל-Google AI Studio.\n" +
-                        "2. לחץ על Get API Key.\n" +
-                        "3. העתק והדבק כאן.\n" +
-                        "זה בחינם ופשוט מאוד!",
+                        "האפליקציה משתמשת בטכנולוגיית ML Kit של גוגל לניתוח מילים אופליין.\n" +
+                        "אין צורך בחיבור לאינטרנט או במפתחות API חיצוניים.\n" +
+                        "הכל נשמר ומעובד מקומית על המכשיר שלך.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "גרסה: 1.0.0 (Offline Mode)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
     }
 }
