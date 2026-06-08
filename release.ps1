@@ -70,6 +70,11 @@ if (-not (Get-Command "gh" -ErrorAction SilentlyContinue)) {
     }
 }
 
+# Delete existing release/tag if it exists to allow re-uploading
+Invoke-Expression "$ghCmd release delete v$newVersion --yes" 2>$null
+git push --delete origin "v$newVersion" 2>$null
+
+# Create new release
 Invoke-Expression "$ghCmd release create v$newVersion $apkPath --title `"Release v$newVersion`" --notes `"Automated release of LingoFlix v$newVersion`""
 
 if ($LASTEXITCODE -ne 0) {
@@ -83,8 +88,8 @@ $htmlFile = "index.html"
 $htmlContent = Get-Content $htmlFile -Raw
 $newDownloadUrl = "https://github.com/Shukigeek/lingo-flix/releases/download/v$newVersion/app-release.apk"
 
-$htmlContent = $htmlContent -replace 'https://github.com/Shukigeek/lingo-flix/releases/tag/.*?"', "$newDownloadUrl`""
-$htmlContent = $htmlContent -replace 'https://github.com/Shukigeek/lingo-flix/releases/download/.*?/app-release.*?\.apk"', "$newDownloadUrl`""
+# Robust replacement for the specific download button link
+$htmlContent = $htmlContent -replace 'https://github.com/Shukigeek/lingo-flix/releases/download/.*?/app-release\.apk"', "$newDownloadUrl`""
 
 Set-Content $htmlFile $htmlContent
 

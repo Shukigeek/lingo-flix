@@ -15,7 +15,7 @@ android {
         applicationId = "com.example.lingoFlix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        versionCode = 6
         versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -103,6 +103,9 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 }
+
+
+
 
 
 
