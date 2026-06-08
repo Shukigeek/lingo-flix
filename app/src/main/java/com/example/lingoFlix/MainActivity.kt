@@ -328,11 +328,8 @@ class MainActivity : ComponentActivity() {
 
             "settings" -> {
                 SettingsScreen(
-                    currentApiKey = currentUser?.let { SecurityUtils.getUserApiKey(context, it.id) } ?: "",
-                    onSaveApiKey = { newKey ->
-                        currentUser?.let { SecurityUtils.saveUserApiKey(context, it.id, newKey) }
-                        navigateBack()
-                    },
+                    currentApiKey = "", 
+                    onSaveApiKey = { },
                     onBack = { navigateBack() }
                 )
             }

@@ -22,7 +22,8 @@ This document serves as a persistent guide for AI assistants to understand the a
    - Multi-mode: Single video, Random Pool (across all shared videos), or Favorites only.
    - **Quiz Logic**: Splits text by words/punctuation and masks words based on difficulty.
    - **Progress**: Saves sentence index per video filename to resume later.
-   - **Offline STT**: Mic button uses `RecognizerIntent` with `EXTRA_PREFER_OFFLINE`.
+   - **Offline Analysis**: Uses Google ML Kit for translation and word info (no internet required after initial download).
+   - **Sync Test**: Info button in player allows jumping to 10%, 50%, 90% to verify subtitle timing.
 
 ## 🛠️ Critical Logic & Data
 - **Subtitle Parsing (`SrtParser.kt`)**: 
