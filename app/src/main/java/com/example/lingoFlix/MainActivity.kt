@@ -45,9 +45,13 @@ import com.example.lingoFlix.ui.components.DifficultySelectionDialog
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SecurityUtils
 import com.example.lingoFlix.utils.SrtParser
+import com.example.lingoFlix.data.AppDatabase
 import java.io.File
 
 class MainActivity : ComponentActivity() {
+    private val database by lazy { AppDatabase.getDatabase(this) }
+    private val videoMetadataDao by lazy { database.videoMetadataDao() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -559,7 +563,8 @@ class MainActivity : ComponentActivity() {
                     },
                     userId = currentUser?.id ?: "guest",
                     initialDir = currentVideoListDir,
-                    onDirChanged = { currentVideoListDir = it }
+                    onDirChanged = { currentVideoListDir = it },
+                    metadataDao = videoMetadataDao
                 )
             }
         }

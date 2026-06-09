@@ -38,7 +38,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -46,12 +46,24 @@ android {
             )
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    
     buildFeatures {
         compose = true
+    }
+}
+
+// Rename the output APK
+@Suppress("DEPRECATION")
+(extensions.getByName("android") as com.android.build.gradle.AppExtension).applicationVariants.all {
+    val variant = this
+    variant.outputs.all {
+        val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+        output.outputFileName = "LingoFlix_v${variant.versionName}.apk"
     }
 }
 
@@ -103,13 +115,3 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 }
-
-
-
-
-
-
-
-
-
-
