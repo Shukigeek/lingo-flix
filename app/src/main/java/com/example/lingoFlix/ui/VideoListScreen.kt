@@ -69,7 +69,8 @@ fun VideoListScreen(
     userId: String = "guest",
     initialDir: File? = null,
     onDirChanged: (File) -> Unit = {},
-    metadataDao: VideoMetadataDao? = null
+    metadataDao: VideoMetadataDao? = null,
+    onPickDirectory: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -100,6 +101,7 @@ fun VideoListScreen(
                     srtFile.outputStream().use { output -> input.copyTo(output) }
                 }
                 Toast.makeText(context, "כתוביות יובאו!", Toast.LENGTH_SHORT).show()
+                currentDir = File(currentDir.absolutePath)
             } catch (e: Exception) {
                 Toast.makeText(context, "שגיאה בייבוא", Toast.LENGTH_SHORT).show()
             }
@@ -171,6 +173,9 @@ fun VideoListScreen(
                     )
                 }
                 Row {
+                    IconButton(onClick = onPickDirectory) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = "Open Device Folder")
+                    }
                     IconButton(onClick = { isGridView = !isGridView }) {
                         Icon(if (isGridView) Icons.Default.List else Icons.Default.GridView, contentDescription = "Toggle View")
                     }

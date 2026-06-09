@@ -58,12 +58,11 @@ android {
 }
 
 // Rename the output APK
-@Suppress("DEPRECATION")
-(extensions.getByName("android") as com.android.build.gradle.AppExtension).applicationVariants.all {
-    val variant = this
-    variant.outputs.all {
-        val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-        output.outputFileName = "LingoFlix_v${variant.versionName}.apk"
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(output.versionName.map { "LingoFlix_v$it.apk" })
+        }
     }
 }
 
@@ -110,7 +109,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
 
     // Room Database
-    val room_version = "2.6.1"
+    val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")

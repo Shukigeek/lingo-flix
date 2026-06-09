@@ -564,7 +564,8 @@ class MainActivity : ComponentActivity() {
                     userId = currentUser?.id ?: "guest",
                     initialDir = currentVideoListDir,
                     onDirChanged = { currentVideoListDir = it },
-                    metadataDao = videoMetadataDao
+                    metadataDao = videoMetadataDao,
+                    onPickDirectory = { pickVideoLauncher.launch(arrayOf("video/*", "application/x-subrip", "text/plain", "application/octet-stream")) }
                 )
             }
         }

@@ -58,6 +58,7 @@ import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.ui.components.*
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SrtParser
+import com.example.lingoFlix.utils.SubtitleGenerator
 import com.example.lingoFlix.util.SoundManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -196,6 +197,27 @@ fun VideoPlayerScreen(
     
     var showInfoMessage by remember { mutableStateOf<String?>(null) }
     
+    var showSearchDialog by remember { mutableStateOf(false) }
+    var subtitleSearchQuery by remember { mutableStateOf("") }
+    
+    val importSubtitleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null && videoUri.scheme == "file") {
+            val videoFile = File(videoUri.path!!)
+            val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    srtFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                Toast.makeText(context, "כתוביות יובאו! טוען מחדש...", Toast.LENGTH_SHORT).show()
+                subtitlesGeneratedTrigger++
+            } catch (e: Exception) {
+                Toast.makeText(context, "שגיאה בייבוא", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // Subtitle Styling states
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", Context.MODE_PRIVATE) }
     var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 34f)) }
@@ -543,6 +565,86 @@ fun VideoPlayerScreen(
         )
     }
 
+    if (showSearchDialog) {
+        AlertDialog(
+            onDismissRequest = { showSearchDialog = false },
+            title = { Text("חיפוש כתוביות") },
+            text = {
+                Column {
+                    val videoName = remember(videoUri) { 
+                        if (videoUri.scheme == "file") File(videoUri.path!!).nameWithoutExtension else "סרטון"
+                    }
+                    LaunchedEffect(Unit) { if (subtitleSearchQuery.isEmpty()) subtitleSearchQuery = videoName }
+                    
+                    TextField(
+                        value = subtitleSearchQuery, 
+                        onValueChange = { subtitleSearchQuery = it }, 
+                        placeholder = { Text("שם הסרט/סדרה") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${subtitleSearchQuery}+subtitles+srt"))) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { 
+                        Icon(Icons.Default.Search, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("חפש ב-Google") 
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ktuvit.me/Movie/Search?q=${subtitleSearchQuery}"))) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) { 
+                        Icon(Icons.Default.Link, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("חפש ב-Ktuvit (מומלץ)") 
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { importSubtitleLauncher.launch("*/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) { 
+                        Icon(Icons.Default.FileOpen, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("ייבוא קובץ SRT קיים") 
+                    }
+                    
+                    if (videoUri.scheme == "file") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    showSearchDialog = false
+                                    isGeneratingSubtitles = true
+                                    val videoFile = File(videoUri.path!!)
+                                    val result = SubtitleGenerator.generateSubtitles(context, videoFile, userId) { generationProgress = it }
+                                    isGeneratingSubtitles = false
+                                    result.onSuccess {
+                                        Toast.makeText(context, "כתוביות נוצרו בהצלחה!", Toast.LENGTH_SHORT).show()
+                                        subtitlesGeneratedTrigger++
+                                    }.onFailure {
+                                        Toast.makeText(context, "שגיאה ביצירה: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("ייצר בעזרת AI (לוקח זמן)")
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showSearchDialog = false }) { Text("סגור") } }
+        )
+    }
+
     if (showSyncTest) {
         AlertDialog(
             onDismissRequest = { showSyncTest = false },
@@ -722,9 +824,18 @@ fun VideoPlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (playbackSpeed < 1.0f) Icons.Default.SlowMotionVideo else Icons.Default.PlayCircle, 
-                            colorDescription = "Playback Speed", 
+                            contentDescription = "Playback Speed",
                             tint = Color.White
                         )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = { showSearchDialog = true },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    ) {
+                        Icon(Icons.Default.Subtitles, contentDescription = "Subtitle Search", tint = Color.White)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
