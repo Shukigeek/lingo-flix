@@ -366,7 +366,7 @@ fun VideoPlayerScreen(
 
             // Calculate start position
             val startPos = if (clips != null && currentClipIndex < clips.size) {
-                val seekBack = if (detectedLanguage == "עברית") 600L else 200L
+                val seekBack = 200L // Reduced from 600ms for more precision
                 (clips[currentClipIndex].startTimeMs - seekBack).coerceAtLeast(0L)
             } else 0L
 
@@ -388,10 +388,10 @@ fun VideoPlayerScreen(
             // Same video, but check if we need to seek to a different clip
             val currentPos = exoPlayer.currentPosition
             val clipStart = clips[currentClipIndex].startTimeMs
-            val seekBack = if (detectedLanguage == "עברית") 600L else 200L
+            val seekBack = 200L
             val targetPos = (clipStart - seekBack).coerceAtLeast(0L)
             
-            if (Math.abs(currentPos - targetPos) > 1000) { 
+            if (Math.abs(currentPos - targetPos) > 500) { 
                 Log.d("VideoPlayerScreen", "Seeking to clip start: $targetPos")
                 exoPlayer.seekTo(targetPos)
             }
@@ -404,13 +404,13 @@ fun VideoPlayerScreen(
     if (clips != null) {
         LaunchedEffect(currentClipIndex, clips) {
             while (true) {
-                delay(100)
+                delay(30) // More frequent checks (30ms instead of 100ms)
                 if (currentClipIndex < clips.size) {
                     val clip = clips[currentClipIndex]
-                    val endBuffer = if (detectedLanguage == "עברית") 1200L else 600L
+                    val endBuffer = 300L // Reduced from 1200ms/600ms for tighter timing
                     if (exoPlayer.currentPosition >= clip.endTimeMs + endBuffer) {
                         exoPlayer.pause()
-                        break // Stop checking once we've paused for this clip
+                        break
                     }
                 } else break
             }
@@ -714,15 +714,6 @@ fun VideoPlayerScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     IconButton(
-                        onClick = { showSyncTest = true },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                    ) {
-                        Icon(Icons.Default.Info, contentDescription = "Sync Test", tint = Color.White)
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    IconButton(
                         onClick = { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f },
                         modifier = Modifier.background(
                             if (playbackSpeed < 1.0f) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
@@ -731,7 +722,7 @@ fun VideoPlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (playbackSpeed < 1.0f) Icons.Default.SlowMotionVideo else Icons.Default.PlayCircle, 
-                            contentDescription = "Playback Speed", 
+                            colorDescription = "Playback Speed", 
                             tint = Color.White
                         )
                     }
@@ -744,10 +735,6 @@ fun VideoPlayerScreen(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    // Removed redundant settings icon as requested
                 }
 
                 IconButton(
@@ -757,20 +744,6 @@ fun VideoPlayerScreen(
                     Icon(
                         imageVector = if (isFullScreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                         contentDescription = "Toggle Fullscreen",
-                        tint = Color.White
-                    )
-                }
-
-                IconButton(
-                    onClick = { subtitlesVisible = subtitlesVisible.not() },
-                    modifier = Modifier.background(
-                        if (subtitlesVisible) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
-                        shape = MaterialTheme.shapes.small
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (subtitlesVisible) Icons.Default.Subtitles else Icons.Default.SubtitlesOff,
-                        contentDescription = "Toggle Subtitles",
                         tint = Color.White
                     )
                 }

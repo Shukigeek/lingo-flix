@@ -45,13 +45,44 @@ object OfflineTranslator {
     }
     
     suspend fun getWordInfo(word: String, sourceLang: String): String {
+        val cleanWord = word.trim().lowercase().replace(Regex("[^a-z]"), "")
         val translation = translate(word, sourceLang)
-        return """
-            **המילה:** $word
-            **תרגום:** $translation
+        
+        val builder = StringBuilder()
+        builder.append("**המילה:** $word\n")
+        builder.append("**תרגום:** $translation\n\n")
+        
+        if (sourceLang == TranslateLanguage.ENGLISH && cleanWord.length > 2) {
+            builder.append("### הטיות ודוגמאות (אופליין):\n")
             
-            *(ניתוח אופליין)*
-            התרגום בוצע מקומית במכשיר.
-        """.trimIndent()
+            // Heuristic for English tenses/plural
+            val forms = mutableListOf<Pair<String, String>>()
+            
+            if (cleanWord.endsWith("y")) {
+                val base = cleanWord.dropLast(1)
+                forms.add("רבים/הווה" to "${base}ies")
+                forms.add("עבר" to "${base}ied")
+            } else if (cleanWord.endsWith("e")) {
+                forms.add("רבים/הווה" to "${cleanWord}s")
+                forms.add("עבר" to "${cleanWord}d")
+                forms.add("מתמשך" to "${cleanWord.dropLast(1)}ing")
+            } else {
+                forms.add("רבים/הווה" to "${cleanWord}s")
+                forms.add("עבר" to "${cleanWord}ed")
+                forms.add("מתמשך" to "${cleanWord}ing")
+            }
+            
+            for ((label, form) in forms) {
+                val formTranslation = translate(form, sourceLang)
+                builder.append("• **$label ($form):** $formTranslation\n")
+            }
+            
+            builder.append("\n**שימוש במשפט דוגמה:**\n")
+            builder.append("I like to $cleanWord every day.\n")
+            builder.append("*(אני אוהב/ת $translation כל יום)*\n")
+        }
+        
+        builder.append("\n*(ניתוח אופליין מקומי)*")
+        return builder.toString()
     }
 }

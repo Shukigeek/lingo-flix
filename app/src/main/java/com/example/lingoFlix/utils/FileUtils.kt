@@ -145,6 +145,18 @@ object FileUtils {
         }
     }
 
+    fun getVideoThumbnail(context: Context, file: File): android.graphics.Bitmap? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, Uri.fromFile(file))
+            retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) // 1 second in
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
+        }
+    }
+
     fun exportVideoToMovies(context: Context, file: File) {
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, file.name)

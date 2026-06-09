@@ -123,18 +123,56 @@ fun XRayDialog(
             }
         },
         text = {
-            Box(modifier = Modifier.heightIn(max = 300.dp).fillMaxWidth()) {
+            Box(modifier = Modifier.heightIn(max = 400.dp).fillMaxWidth()) {
                 if (isLoading) {
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
-                        Text("מנתח (אופליין)...", modifier = Modifier.padding(top = 8.dp))
+                        Text("מנתח את המילה (אופליין)...", modifier = Modifier.padding(top = 8.dp))
                     }
                 } else if (error != null) {
                     Text(error!!, color = Color.Red)
                 } else {
-                    LazyColumn {
+                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
                         item {
-                            Text(text = analysisResult ?: "אין מידע")
+                            analysisResult?.let { result ->
+                                result.split("\n").forEach { line ->
+                                    if (line.startsWith("###")) {
+                                        Text(
+                                            text = line.replace("###", "").trim(),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                                        )
+                                    } else if (line.startsWith("•")) {
+                                        Text(
+                                            text = line,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                                        )
+                                    } else if (line.startsWith("**") || line.contains("**")) {
+                                        // Simple bold support
+                                        Text(
+                                            text = line.replace("**", ""),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else if (line.startsWith("*") && line.endsWith("*")) {
+                                        Text(
+                                            text = line.replace("*", ""),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = Color.Gray,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        )
+                                    } else {
+                                        Text(
+                                            text = line,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
