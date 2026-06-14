@@ -60,17 +60,14 @@ object FileUtils {
         return name
     }
 
-    fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String): File? {
+    fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null): File? {
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val videoDir = File(context.filesDir, "videos")
+            val videoDir = targetDir ?: File(context.filesDir, "videos")
             
-            // Create a subfolder based on the video name (without extension)
-            val baseName = if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
-            val targetDir = File(videoDir, baseName)
-            if (!targetDir.exists()) targetDir.mkdirs()
+            if (!videoDir.exists()) videoDir.mkdirs()
             
-            val targetFile = File(targetDir, fileName)
+            val targetFile = File(videoDir, fileName)
             val outputStream = FileOutputStream(targetFile)
             
             inputStream?.use { input ->
@@ -85,21 +82,12 @@ object FileUtils {
         }
     }
 
-    fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, videoName: String? = null): File? {
+    fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null, videoName: String? = null): File? {
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val videoDir = File(context.filesDir, "videos")
+            val subDir = targetDir ?: File(context.filesDir, "videos")
             
-            // Determine the subfolder. If videoName is provided, use it. 
-            // Otherwise use the subtitle's name.
-            val baseName = if (videoName != null) {
-                if (videoName.contains(".")) videoName.substringBeforeLast(".") else videoName
-            } else {
-                if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
-            }
-            
-            val targetDir = File(videoDir, baseName)
-            if (!targetDir.exists()) targetDir.mkdirs()
+            if (!subDir.exists()) subDir.mkdirs()
             
             // If linked to a video, we might want to rename the SRT to match the video name exactly
             val targetFileName = if (videoName != null) {
@@ -109,7 +97,7 @@ object FileUtils {
                 fileName
             }
 
-            val targetFile = File(targetDir, targetFileName)
+            val targetFile = File(subDir, targetFileName)
             val outputStream = FileOutputStream(targetFile)
             
             inputStream?.use { input ->

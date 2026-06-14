@@ -14,6 +14,7 @@ media3 = "1.10.1"
 securityCrypto = "1.1.0"
 mlkitTranslate = "17.0.3"
 mlkitLangId = "17.0.4"
+coil = "2.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +41,7 @@ androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.re
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 google-mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
 google-mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLangId" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

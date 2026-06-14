@@ -22,10 +22,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.R
 import com.example.lingoFlix.ui.components.*
+import coil.compose.AsyncImage
 import java.io.File
 
 @Composable
@@ -222,6 +224,43 @@ fun DashboardScreen(
                     }
 
                     item {
+                        // Recommendations Section
+                        Surface(
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(24.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFF58CC02),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "מומלץ עבורך",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF4B4B4B)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    RecommendationItem("Seinfeld", "https://image.tmdb.org/t/p/w200/a3m79vB7Z9z7S6zKi6thpS686ln.jpg", Modifier.weight(1f))
+                                    RecommendationItem("The Bear", "https://image.tmdb.org/t/p/w200/5NX98f73YQzR14CgYfI6nFvR6U9.jpg", Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
+                    item {
                         // Stats Section
                         Surface(
                             color = Color.White.copy(alpha = 0.85f),
@@ -367,5 +406,36 @@ fun StatBox(
                 fontWeight = FontWeight.ExtraBold
             )
         }
+    }
+}
+
+@Composable
+fun RecommendationItem(
+    title: String,
+    imageUrl: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.7f)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF4B4B4B),
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
     }
 }

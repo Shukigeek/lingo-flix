@@ -93,6 +93,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.coil.compose)
 
     // ML Kit & Offline features
     implementation(libs.google.mlkit.translate)

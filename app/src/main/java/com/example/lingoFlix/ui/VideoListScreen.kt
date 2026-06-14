@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -109,19 +110,12 @@ fun VideoListScreen(
         }
     }
     
+    val videoExtensions = remember { listOf("mp4", "mkv", "avi", "mov", "webm") }
     val items = remember(currentDir) {
-        currentDir.listFiles()?.filter { it.isDirectory || it.extension != "srt" }
-            ?.map { file ->
-                if (file.isDirectory) {
-                    val children = file.listFiles() ?: emptyArray()
-                    val videoFiles = children.filter { child ->
-                        !child.isDirectory && listOf("mp4", "mkv", "avi", "mov", "webm").any { ext -> child.name.endsWith(".$ext", ignoreCase = true) }
-                    }
-                    if (videoFiles.size == 1 && children.size <= 3) videoFiles[0] else file
-                } else file
-            }
-            ?.distinctBy { it.absolutePath }
-            ?.sortedWith(compareBy({ !it.isDirectory }, { it.name })) ?: emptyList()
+        currentDir.listFiles()?.filter { file ->
+            file.isDirectory || videoExtensions.any { ext -> file.name.endsWith(".$ext", ignoreCase = true) } || !file.name.contains(".")
+        }?.distinctBy { it.absolutePath }
+         ?.sortedWith(compareBy({ !it.isDirectory }, { it.name })) ?: emptyList()
     }
 
     var videoToRename by remember { mutableStateOf<File?>(null) }
@@ -137,9 +131,6 @@ fun VideoListScreen(
     var subtitleSearchQuery by remember { mutableStateOf("") }
     var newFileName by remember { mutableStateOf("") }
     var selectedDifficulty by remember { mutableStateOf("קל") }
-
-    var isGeneratingSubtitles by remember { mutableStateOf(false) }
-    var generationProgress by remember { mutableStateOf("") }
 
     val handleBack = {
         if (currentDir != rootVideoDir) {
@@ -206,6 +197,7 @@ fun VideoListScreen(
                     ) {
                         items(items) { file ->
                             val metadata = allMetadata.find { it.filePath == file.absolutePath }
+                            val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
                             GalleryItem(
                                 file = file,
                                 metadata = metadata,
@@ -213,26 +205,14 @@ fun VideoListScreen(
                                     if (file.isDirectory) currentDir = file
                                     else onVideoSelected(Uri.fromFile(file))
                                 },
-                                onLongClick = { videoToEditMetadata = file },
-                                onMenuClick = { videoToEditMetadata = file }
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
-                        items(items) { file ->
-                            val metadata = allMetadata.find { it.filePath == file.absolutePath }
-                            VideoItem(
-                                file = file,
-                                metadata = metadata,
-                                context = context,
-                                onVideoSelected = {
-                                    if (file.isDirectory) currentDir = file
-                                    else onVideoSelected(Uri.fromFile(file))
+                                onLongClick = { 
+                                    if (file.isDirectory) folderToDelete = file 
+                                    else videoToEditMetadata = file 
                                 },
+                                onMenuClick = { /* Handled in VideoActionsMenu */ },
+                                isLinked = linkedVideos.contains(relativePath),
+                                onToggleLink = { onToggleLink(relativePath) },
                                 onPractice = { videoForQuiz = file },
-                                isLinked = linkedVideos.contains(file.relativeTo(rootVideoDir).path),
-                                onToggleLink = { onToggleLink(file.relativeTo(rootVideoDir).path) },
                                 onRename = { 
                                     videoToRename = file
                                     newFileName = file.name
@@ -246,16 +226,41 @@ fun VideoListScreen(
                                     videoToImportSubtitles = file
                                     importSubtitleLauncher.launch("*/*")
                                 },
-                                onGenerateSubtitles = {
-                                    scope.launch {
-                                        isGeneratingSubtitles = true
-                                        val result = SubtitleGenerator.generateSubtitles(context, file, userId) { generationProgress = it }
-                                        isGeneratingSubtitles = false
-                                        result.onSuccess {
-                                            Toast.makeText(context, "כתוביות נוצרו!", Toast.LENGTH_SHORT).show()
-                                            currentDir = File(currentDir.absolutePath)
-                                        }.onFailure { Toast.makeText(context, "שגיאה: ${it.localizedMessage}", Toast.LENGTH_LONG).show() }
-                                    }
+                                onDelete = { 
+                                    if (file.isDirectory) folderToDelete = file else videoToDelete = file 
+                                },
+                                onMove = { videoToMove = file }
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
+                        items(items) { file ->
+                            val metadata = allMetadata.find { it.filePath == file.absolutePath }
+                            val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
+                            VideoItem(
+                                file = file,
+                                metadata = metadata,
+                                context = context,
+                                onVideoSelected = {
+                                    if (file.isDirectory) currentDir = file
+                                    else onVideoSelected(Uri.fromFile(file))
+                                },
+                                onPractice = { videoForQuiz = file },
+                                isLinked = linkedVideos.contains(relativePath),
+                                onToggleLink = { onToggleLink(relativePath) },
+                                onRename = { 
+                                    videoToRename = file
+                                    newFileName = file.name
+                                },
+                                onEditMetadata = { videoToEditMetadata = file },
+                                onSearchSubtitles = {
+                                    subtitleSearchQuery = file.nameWithoutExtension
+                                    videoToSearchSubtitles = file
+                                },
+                                onImportSubtitles = {
+                                    videoToImportSubtitles = file
+                                    importSubtitleLauncher.launch("*/*")
                                 },
                                 onDelete = { 
                                     if (file.isDirectory) folderToDelete = file else videoToDelete = file 
@@ -264,18 +269,6 @@ fun VideoListScreen(
                             )
                         }
                     }
-                }
-            }
-        }
-
-        // Overlay for AI Generation
-        if (isGeneratingSubtitles) {
-            Surface(modifier = Modifier.fillMaxSize(), color = Color.Black.copy(alpha = 0.7f)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    CircularProgressIndicator(color = Color.White)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("מייצר כתוביות בעזרת AI...", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                    Text(generationProgress, color = Color.White.copy(alpha = 0.8f))
                 }
             }
         }
@@ -370,7 +363,9 @@ fun VideoListScreen(
                     LazyColumn {
                         items(allFolders) { folder ->
                             val folderName = if (folder == rootVideoDir) "תיקייה ראשית" else folder.relativeTo(rootVideoDir).path
-                            if (folder != videoToMove) { 
+                            // Ensure target is a directory and not the source itself (if source is directory)
+                            val isSourceSubdir = videoToMove?.absolutePath?.startsWith(folder.absolutePath) == true
+                            if (folder != videoToMove && !isSourceSubdir) { 
                                 Text(
                                     text = folderName,
                                     modifier = Modifier.fillMaxWidth().clickable {
@@ -424,8 +419,14 @@ fun VideoListScreen(
                     val file = videoToDelete!!
                     val srtFile = File(file.parentFile, "${file.nameWithoutExtension}.srt")
                     if (srtFile.exists()) srtFile.delete()
+                    
+                    val parent = file.parentFile
                     if (file.delete()) {
                         scope.launch { metadataDao?.deleteByPath(file.absolutePath) }
+                        // Cleanup parent folder if empty and not root
+                        if (parent != null && parent != rootVideoDir && parent.listFiles()?.isEmpty() == true) {
+                            parent.delete()
+                        }
                         currentDir = File(currentDir.absolutePath)
                     }
                     videoToDelete = null
@@ -484,11 +485,21 @@ fun GalleryItem(
     metadata: VideoMetadata?,
     onVideoSelected: () -> Unit,
     onLongClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    isLinked: Boolean = false,
+    onToggleLink: () -> Unit = {},
+    onPractice: () -> Unit,
+    onRename: () -> Unit,
+    onEditMetadata: () -> Unit,
+    onSearchSubtitles: () -> Unit,
+    onImportSubtitles: () -> Unit,
+    onDelete: () -> Unit,
+    onMove: () -> Unit
 ) {
     val context = LocalContext.current
     var thumbnail by remember { mutableStateOf<Bitmap?>(null) }
     val isDirectory = file.isDirectory
+    var showMenu by remember { mutableStateOf(false) }
     
     LaunchedEffect(file) {
         if (!isDirectory) {
@@ -544,6 +555,21 @@ fun GalleryItem(
                         }
                     }
                     
+                    // Link status indicator
+                    if (isLinked) {
+                        Icon(
+                            Icons.Default.Link,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(8.dp)
+                                .size(20.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .padding(2.dp)
+                        )
+                    }
+
                     // Season/Episode Badge
                     if (metadata?.season != null || metadata?.episode != null) {
                         Surface(
@@ -561,28 +587,109 @@ fun GalleryItem(
                 }
             }
             
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    text = metadata?.title ?: file.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Bold
-                )
-                if (metadata?.description != null) {
+            Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = metadata.description,
-                        style = MaterialTheme.typography.bodySmall,
+                        text = metadata?.title ?: file.name,
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color.Gray
+                        fontWeight = FontWeight.Bold
                     )
-                } else if (!isDirectory) {
-                    val duration = remember(file) { FileUtils.getVideoDuration(context, file) }
-                    Text(duration ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    if (metadata?.description != null) {
+                        Text(
+                            text = metadata.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Color.Gray
+                        )
+                    } else if (!isDirectory) {
+                        val duration = remember(file) { FileUtils.getVideoDuration(context, file) }
+                        Text(duration ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                }
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.Gray)
+                    }
+                    VideoActionsMenu(
+                        expanded = showMenu,
+                        onDismiss = { showMenu = false },
+                        isDirectory = isDirectory,
+                        isLinked = isLinked,
+                        onPractice = onPractice,
+                        onToggleLink = onToggleLink,
+                        onSearchSubtitles = onSearchSubtitles,
+                        onImportSubtitles = onImportSubtitles,
+                        onEditMetadata = onEditMetadata,
+                        onRename = onRename,
+                        onMove = onMove,
+                        onDelete = onDelete
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun VideoActionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    isDirectory: Boolean,
+    isLinked: Boolean,
+    onPractice: () -> Unit,
+    onToggleLink: () -> Unit,
+    onSearchSubtitles: () -> Unit,
+    onImportSubtitles: () -> Unit,
+    onEditMetadata: () -> Unit,
+    onRename: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        if (!isDirectory) {
+            DropdownMenuItem(
+                text = { Text(if (isLinked) "הסר ממאגר רנדומלי" else "הוסף למאגר רנדומלי") },
+                onClick = { onDismiss(); onToggleLink() },
+                leadingIcon = { Icon(if (isLinked) Icons.Default.LinkOff else Icons.Default.Link, null) }
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("חפש כתוביות") },
+                onClick = { onDismiss(); onSearchSubtitles() },
+                leadingIcon = { Icon(Icons.Default.Search, null) }
+            )
+            DropdownMenuItem(
+                text = { Text("ייבא כתוביות") },
+                onClick = { onDismiss(); onImportSubtitles() },
+                leadingIcon = { Icon(Icons.Default.FileOpen, null) }
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("ערוך פרטים") },
+                onClick = { onDismiss(); onEditMetadata() },
+                leadingIcon = { Icon(Icons.Default.EditNote, null) }
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("שנה שם") },
+            onClick = { onDismiss(); onRename() },
+            leadingIcon = { Icon(Icons.Default.Edit, null) }
+        )
+        DropdownMenuItem(
+            text = { Text("העבר אל...") },
+            onClick = { onDismiss(); onMove() },
+            leadingIcon = { Icon(Icons.Default.DriveFileMove, null) }
+        )
+        HorizontalDivider()
+        DropdownMenuItem(
+            text = { Text(if (isDirectory) "מחק תיקייה" else "מחק") },
+            onClick = { onDismiss(); onDelete() },
+            leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
+            colors = MenuDefaults.itemColors(textColor = Color.Red)
+        )
     }
 }
 
@@ -600,7 +707,6 @@ fun VideoItem(
     onEditMetadata: () -> Unit,
     onSearchSubtitles: () -> Unit,
     onImportSubtitles: () -> Unit,
-    onGenerateSubtitles: () -> Unit,
     onDelete: () -> Unit,
     onMove: () -> Unit
 ) {
@@ -643,7 +749,23 @@ fun VideoItem(
                         Text(if (isDirectory) "תיקייה" else (duration ?: ""), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     }
                 }
-                IconButton(onClick = onEditMetadata) { Icon(Icons.Default.EditNote, contentDescription = "Edit Metadata", tint = Color.Gray) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "תפריט") }
+                    VideoActionsMenu(
+                        expanded = showMenu,
+                        onDismiss = { showMenu = false },
+                        isDirectory = isDirectory,
+                        isLinked = isLinked,
+                        onPractice = onPractice,
+                        onToggleLink = onToggleLink,
+                        onSearchSubtitles = onSearchSubtitles,
+                        onImportSubtitles = onImportSubtitles,
+                        onEditMetadata = onEditMetadata,
+                        onRename = onRename,
+                        onMove = onMove,
+                        onDelete = onDelete
+                    )
+                }
             }
         }
     }

@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,7 +22,7 @@ fun SettingsScreen(
     onSaveApiKey: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     var apiKey by remember { mutableStateOf(currentApiKey) }
 
     Scaffold(
@@ -42,11 +44,35 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "הגדרות אפליקציה",
+                text = "הגדרות בינה מלאכותית (AI)",
                 style = MaterialTheme.typography.titleLarge
             )
             
             Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = { apiKey = it },
+                label = { Text("Gemini API Key") },
+                placeholder = { Text("הזן מפתח כאן...") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
+                singleLine = true
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = {
+                    onSaveApiKey(apiKey)
+                    Toast.makeText(context, "המפתח נשמר!", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("שמור מפתח")
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
             
             Card(
                 colors = CardDefaults.cardColors(
@@ -57,22 +83,21 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("מידע על הניתוח", style = MaterialTheme.typography.titleMedium)
+                        Text("מידע על ה-AI", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "האפליקציה משתמשת בטכנולוגיית ML Kit של גוגל לניתוח מילים אופליין.\n" +
-                        "אין צורך בחיבור לאינטרנט או במפתחות API חיצוניים.\n" +
-                        "הכל נשמר ומעובד מקומית על המכשיר שלך.",
+                        "האפליקציה משתמשת ב-Gemini 1.5 Flash כדי לייצר כתוביות לסרטונים שלך.\n" +
+                        "עליך להשיג מפתח API בחינם מ-Google AI Studio כדי להשתמש בתכונה זו.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                text = "גרסה: 1.0.0 (Offline Mode)",
+                text = "גרסה: 1.0.0",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )
