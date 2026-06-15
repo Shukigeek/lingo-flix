@@ -32,7 +32,8 @@ fun DuoButton(
     modifier: Modifier = Modifier,
     color: Color = DuoGreen,
     darkColor: Color = DuoDarkGreen,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
 ) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -67,13 +68,28 @@ fun DuoButton(
                 .background(if (enabled) color else DuoGray, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = text.uppercase(),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                fontSize = 18.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                if (leadingIcon != null) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = text.uppercase(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    fontSize = 18.sp
+                )
+            }
         }
     }
 }

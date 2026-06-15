@@ -18,12 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    currentApiKey: String,
-    onSaveApiKey: (String) -> Unit,
+    currentGeminiApiKey: String,
+    currentTmdbApiKey: String,
+    onSaveKeys: (String, String) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var apiKey by remember { mutableStateOf(currentApiKey) }
+    var geminiApiKey by remember { mutableStateOf(currentGeminiApiKey) }
+    var tmdbApiKey by remember { mutableStateOf(currentTmdbApiKey) }
 
     Scaffold(
         topBar = {
@@ -44,17 +46,29 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "הגדרות בינה מלאכותית (AI)",
+                text = "הגדרות API",
                 style = MaterialTheme.typography.titleLarge
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                label = { Text("Gemini API Key") },
+                value = geminiApiKey,
+                onValueChange = { geminiApiKey = it },
+                label = { Text("Gemini API Key (עבור כתוביות AI)") },
                 placeholder = { Text("הזן מפתח כאן...") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = tmdbApiKey,
+                onValueChange = { tmdbApiKey = it },
+                label = { Text("TMDB API Key (עבור גילוי תוכן)") },
+                placeholder = { Text("הזן מפתח TMDB כאן...") },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.VpnKey, null) },
                 singleLine = true
@@ -64,12 +78,12 @@ fun SettingsScreen(
             
             Button(
                 onClick = {
-                    onSaveApiKey(apiKey)
-                    Toast.makeText(context, "המפתח נשמר!", Toast.LENGTH_SHORT).show()
+                    onSaveKeys(geminiApiKey, tmdbApiKey)
+                    Toast.makeText(context, "המפתחות נשמרו!", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("שמור מפתח")
+                Text("שמור מפתחות")
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -83,12 +97,13 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("מידע על ה-AI", style = MaterialTheme.typography.titleMedium)
+                        Text("מידע על המפתחות", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "האפליקציה משתמשת ב-Gemini 1.5 Flash כדי לייצר כתוביות לסרטונים שלך.\n" +
-                        "עליך להשיג מפתח API בחינם מ-Google AI Studio כדי להשתמש בתכונה זו.",
+                        "1. Gemini API: משמש לייצור כתוביות (SRT) לסרטונים המקומיים שלך.\n" +
+                        "2. TMDB API: משמש לחיפוש סדרות וסרטים בטאב 'גילוי'.\n\n" +
+                        "ניתן להשיג את המפתחות בחינם באתרים של Google AI Studio ו-TheMovieDB.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

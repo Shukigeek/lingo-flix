@@ -570,6 +570,18 @@ fun GalleryItem(
                         )
                     }
 
+                    // Subtitle status indicator
+                    val srtFile = remember(file) { FileUtils.findBestSrtForVideo(file) }
+                    if (srtFile?.exists() == true) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                            color = Color(0xFF58CC02),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("CC", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 4.dp), fontWeight = FontWeight.Bold)
+                        }
+                    }
+
                     // Season/Episode Badge
                     if (metadata?.season != null || metadata?.episode != null) {
                         Surface(
@@ -744,9 +756,15 @@ fun VideoItem(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(metadata?.title ?: file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         if (metadata?.season != null) Text("S${metadata.season}E${metadata.episode ?: 0} • ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (isDirectory) "תיקייה" else (duration ?: ""), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        if (hasSubtitles) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(color = Color(0xFF58CC02).copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
+                                Text("CC", color = Color(0xFF58CC02), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 4.dp), fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
                 Box {

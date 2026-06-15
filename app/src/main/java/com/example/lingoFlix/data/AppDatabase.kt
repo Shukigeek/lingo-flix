@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.lingoFlix.model.VideoMetadata
 
-@Database(entities = [VideoMetadata::class], version = 1)
+@Database(entities = [VideoMetadata::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun videoMetadataDao(): VideoMetadataDao
 

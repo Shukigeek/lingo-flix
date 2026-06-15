@@ -34,13 +34,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.lingoFlix.ui.DashboardScreen
 import com.example.lingoFlix.ui.DifficultyScreen
 import com.example.lingoFlix.ui.DiscoveryScreen
 import com.example.lingoFlix.ui.SettingsScreen
 import com.example.lingoFlix.ui.VideoListScreen
 import com.example.lingoFlix.ui.VideoPlayerScreen
+import com.example.lingoFlix.ui.ProfileScreen
+import com.example.lingoFlix.ui.BattleScreen
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Explore
@@ -89,12 +91,22 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: android.content.Intent?) {
         if (intent?.action == android.content.Intent.ACTION_SEND) {
-            val uri = intent.getParcelableExtra<Uri>(android.content.Intent.EXTRA_STREAM)
+            val uri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+            }
             if (uri != null) {
                 saveVideo(uri)
             }
         } else if (intent?.action == android.content.Intent.ACTION_SEND_MULTIPLE) {
-            val uris = intent.getParcelableArrayListExtra<Uri>(android.content.Intent.EXTRA_STREAM)
+            val uris = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM)
+            }
             uris?.forEach { saveVideo(it) }
         }
     }
@@ -176,6 +188,7 @@ class MainActivity : ComponentActivity() {
     
     var totalXP by remember { mutableIntStateOf(statsManager.getXP()) }
     var currentStreak by remember { mutableIntStateOf(statsManager.getStreak()) }
+    var currentBackground by rememberSaveable { mutableIntStateOf(R.drawable.friends) }
     
     var selectedVideoFile by remember { mutableStateOf<File?>(null) }
     var currentVideoListDir by remember { mutableStateOf<File?>(null) }
@@ -299,9 +312,9 @@ class MainActivity : ComponentActivity() {
     var showDifficultyDialogForFavorites by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // App Background Image (Friends)
+        // App Background Image
         Image(
-            painter = painterResource(id = R.drawable.friends),
+            painter = painterResource(id = currentBackground),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
@@ -359,7 +372,7 @@ class MainActivity : ComponentActivity() {
                 .padding(padding)
                 .statusBarsPadding()) {
                 when (currentScreen) {
-                "discovery" -> DiscoveryScreen()
+                "discovery" -> DiscoveryScreen(userId = currentUser?.id ?: "guest")
                 "difficulty" -> {
                     selectedVideoFile?.let { file ->
                         DifficultyScreen(
@@ -411,9 +424,36 @@ class MainActivity : ComponentActivity() {
 
                 "settings" -> {
                     SettingsScreen(
-                        currentApiKey = SecurityUtils.getUserApiKey(context, currentUser?.id ?: "guest") ?: "", 
-                        onSaveApiKey = { SecurityUtils.saveUserApiKey(context, currentUser?.id ?: "guest", it) },
+                        currentGeminiApiKey = SecurityUtils.getUserApiKey(context, currentUser?.id ?: "guest") ?: "", 
+                        currentTmdbApiKey = SecurityUtils.getTmdbApiKey(context, currentUser?.id ?: "guest") ?: "",
+                        onSaveKeys = { gemini, tmdb -> 
+                            SecurityUtils.saveUserApiKey(context, currentUser?.id ?: "guest", gemini)
+                            SecurityUtils.saveTmdbApiKey(context, currentUser?.id ?: "guest", tmdb)
+                        },
                         onBack = { navigateBack() }
+                    )
+                }
+
+                "profile" -> {
+                    ProfileScreen(
+                        userName = currentUser?.name ?: "לומד",
+                        onNameChange = { newName ->
+                            currentUser = currentUser?.copy(name = newName)
+                            // Save to stats if needed
+                        },
+                        totalXP = totalXP,
+                        currentStreak = currentStreak,
+                        onBack = { navigateBack() }
+                    )
+                }
+
+                "battle" -> {
+                    BattleScreen(
+                        onBack = { navigateBack() },
+                        onScoreUpdate = { points ->
+                            statsManager.addXP(points)
+                            totalXP = statsManager.getXP()
+                        }
                     )
                 }
 
@@ -423,6 +463,8 @@ class MainActivity : ComponentActivity() {
                         onUploadVideo = { pickVideoLauncher.launch(arrayOf("video/*", "application/x-subrip", "text/plain", "application/octet-stream")) },
                         onRandomSentences = { showDifficultyDialogForRandom = true },
                         onFavorites = { showDifficultyDialogForFavorites = true },
+                        onBattleMode = { navigateTo("battle") },
+                        onProfileClick = { navigateTo("profile") },
                         onVideoSelected = { file ->
                             selectedVideoFile = file
                             navigateTo("difficulty")

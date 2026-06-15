@@ -936,14 +936,18 @@ fun VideoPlayerScreen(
                 )
 
                 Surface(
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = Color.Black.copy(alpha = 0.5f), // Semi-transparent background
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp)
+                        .fillMaxWidth(0.9f) // Don't take full width
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 32.dp)
                         .offset(x = shakeOffset.value.dp)
-                        .border(2.dp, if (flashColor != Color.Transparent) flashColor else borderColor, RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp)
+                        .border(
+                            2.dp, 
+                            if (flashColor != Color.Transparent) flashColor else borderColor.copy(alpha = 0.3f), 
+                            RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Box(modifier = Modifier.background(flashColor.copy(alpha = 0.1f))) {
                         val text = currentClip.text
@@ -968,11 +972,12 @@ fun VideoPlayerScreen(
                                                     fontSize = subtitleFontSize.sp,
                                                     fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                     fontFamily = currentFontFamily,
-                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                    style = MaterialTheme.typography.headlineSmall.copy(
                                                         textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                        textAlign = TextAlign.Center
+                                                        textAlign = TextAlign.Center,
+                                                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
                                                     ),
-                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 4.dp)
                                                 )
                                             } else {
                                                 Text(
@@ -981,11 +986,12 @@ fun VideoPlayerScreen(
                                                     fontSize = subtitleFontSize.sp,
                                                     fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                                     fontFamily = currentFontFamily,
-                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                    style = MaterialTheme.typography.headlineSmall.copy(
                                                         textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                        textAlign = TextAlign.Center
+                                                        textAlign = TextAlign.Center,
+                                                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
                                                     ),
-                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 4.dp)
                                                 )
                                             }
                                         }
@@ -998,8 +1004,9 @@ fun VideoPlayerScreen(
                                         fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
                                         fontFamily = currentFontFamily,
                                         modifier = Modifier.fillMaxWidth(),
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                            shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
                                         ),
                                         textAlign = TextAlign.Center
                                     )
