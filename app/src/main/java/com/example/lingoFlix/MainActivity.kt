@@ -190,6 +190,13 @@ class MainActivity : ComponentActivity() {
     var currentStreak by remember { mutableIntStateOf(statsManager.getStreak()) }
     var currentBackground by rememberSaveable { mutableIntStateOf(R.drawable.friends) }
     
+    var remoteAnnouncement by remember { mutableStateOf<String?>(null) }
+    
+    LaunchedEffect(Unit) {
+        val config = com.example.lingoFlix.data.remote.RemoteConfigManager.fetchConfig()
+        remoteAnnouncement = config?.announcement
+    }
+
     var selectedVideoFile by remember { mutableStateOf<File?>(null) }
     var currentVideoListDir by remember { mutableStateOf<File?>(null) }
     var selectedVideoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -473,6 +480,15 @@ class MainActivity : ComponentActivity() {
                         currentStreak = currentStreak,
                         userName = currentUser?.name ?: "לומד"
                     )
+                    
+                    if (remoteAnnouncement != null) {
+                        AlertDialog(
+                            onDismissRequest = { remoteAnnouncement = null },
+                            title = { Text("הודעה מהמפתחים 📢") },
+                            text = { Text(remoteAnnouncement!!) },
+                            confirmButton = { Button(onClick = { remoteAnnouncement = null }) { Text("הבנתי") } }
+                        )
+                    }
                     
                     if (showDifficultyDialogForRandom) {
                         DifficultySelectionDialog(

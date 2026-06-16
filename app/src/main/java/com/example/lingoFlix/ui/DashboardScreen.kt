@@ -167,7 +167,7 @@ fun DashboardScreen(
                                 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Featured Random Practice Widget
+                                // Featured "Start Game" Widget
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -177,11 +177,11 @@ fun DashboardScreen(
                                         .padding(16.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Casino, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                                        Icon(Icons.Default.PlayCircleFilled, null, tint = Color.White, modifier = Modifier.size(48.dp))
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column {
-                                            Text("אימון משפטים רנדומליים", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                            Text("שפר את הזיכרון עם משפטים מכל המאגר", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+                                            Text("התחל משחק מרכזי", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                            Text("תרגול רנדומלי מכל הסרטונים שלך", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
                                         }
                                     }
                                 }
@@ -190,7 +190,7 @@ fun DashboardScreen(
                                 
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     DuoButton(
-                                        text = "המועדפים",
+                                        text = "המועדפים שלי",
                                         onClick = onFavorites,
                                         color = Color(0xFFFFD600),
                                         darkColor = Color(0xFFE6C300),
@@ -198,12 +198,12 @@ fun DashboardScreen(
                                         leadingIcon = Icons.Default.Star
                                     )
                                     DuoButton(
-                                        text = "קרב קלפים",
-                                        onClick = onBattleMode,
-                                        color = Color(0xFFFF5252),
-                                        darkColor = Color(0xFFD32F2F),
+                                        text = "מאגר הסרטים",
+                                        onClick = onMyVideos,
+                                        color = Color(0xFF1CB0F6),
+                                        darkColor = Color(0xFF1899D6),
                                         modifier = Modifier.weight(1f),
-                                        leadingIcon = Icons.Default.Bolt
+                                        leadingIcon = Icons.Default.VideoLibrary
                                     )
                                 }
                             }

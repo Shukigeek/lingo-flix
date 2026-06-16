@@ -23,12 +23,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.lingoFlix.R
 import com.example.lingoFlix.data.remote.TmdbApiService
 import com.example.lingoFlix.data.repository.TmdbRepository
 import com.example.lingoFlix.model.SearchResult
@@ -54,6 +56,18 @@ fun DiscoveryScreen(userId: String) {
     var query by remember { mutableStateOf("") }
     var selectedItem by remember { mutableStateOf<SearchResult?>(null) }
     val tmdbApiKey = remember { SecurityUtils.getTmdbApiKey(context, userId) }
+
+    // Hardcoded fallback data for preview/offline
+    val fallbackResults = remember {
+        listOf(
+            SearchResult(1, "Friends", "https://image.tmdb.org/t/p/w500/fob2vYm5998Ar936IIn9C9YpXcr.jpg", "החיים, האהבות והצחוקים של שישה חברים בניו יורק.", "tv"),
+            SearchResult(2, "Breaking Bad", "https://image.tmdb.org/t/p/w500/ggm8bbub63OwoE1Z977jZ0hzR3H.jpg", "מורה לכימיה הופך ליצרן סמים כדי להציל את משפחתו.", "tv"),
+            SearchResult(3, "The Office", "https://image.tmdb.org/t/p/w500/q979SsbMqUnwh7ZzQm07p5vU4lc.jpg", "חיי היומיום המצחיקים במשרד למכירת נייר.", "tv"),
+            SearchResult(4, "Stranger Things", "https://image.tmdb.org/t/p/w500/49Wfivq1TdZ0VE6US7zAhS6FD9w.jpg", "תעלומות על-טבעיות בעיירה קטנה בשנות ה-80.", "tv"),
+            SearchResult(5, "Game of Thrones", "https://image.tmdb.org/t/p/w500/7WsyChvRStv9OidaxPFEj739vvk.jpg", "מאבקי כוח אפיים על כס הברזל.", "tv"),
+            SearchResult(6, "The Bear", "https://image.tmdb.org/t/p/w500/5NX98f73YQzR14CgYfI6nFvR6U9.jpg", "שף צעיר חוזר לנהל את העסק המשפחתי בשיקגו.", "tv")
+        )
+    }
 
     LaunchedEffect(Unit) {
         if (tmdbApiKey != null) {
@@ -91,20 +105,21 @@ fun DiscoveryScreen(userId: String) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (tmdbApiKey.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .background(Color.Yellow.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                    .padding(16.dp)
+        if (tmdbApiKey.isNullOrBlank() && query.isEmpty()) {
+            // Show Fallback results when no API key
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                Text(
-                    "שים לב: לא הוגדר מפתח TMDB בהגדרות. לא ניתן לחפש תוכן חי.", 
-                    color = Color.DarkGray, 
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
-                )
+                items(fallbackResults) { item ->
+                    DiscoveryCard(item) { selectedItem = item }
+                }
+            }
+        } else if (tmdbApiKey.isNullOrBlank() && query.isNotEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("הזן מפתח TMDB בהגדרות כדי לחפש", color = Color.Gray)
             }
         } else {
             when (val state = uiState) {
@@ -306,18 +321,14 @@ fun DiscoveryCard(item: SearchResult, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box {
-            if (item.imageUrl != null) {
-                AsyncImage(
-                    model = item.imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Gray), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Movie, null, modifier = Modifier.size(48.dp), tint = Color.White)
-                }
-            }
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                error = painterResource(R.drawable.friends), // Use a default background as fallback
+                placeholder = painterResource(R.drawable.friends)
+            )
             
             Box(
                 modifier = Modifier
