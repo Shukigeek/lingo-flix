@@ -16,7 +16,18 @@ data class TmdbResult(
     @SerializedName("title") val title: String?,
     @SerializedName("overview") val overview: String?,
     @SerializedName("poster_path") val posterPath: String?,
-    @SerializedName("media_type") val mediaType: String?
+    @SerializedName("media_type") val mediaType: String?,
+    @SerializedName("vote_average") val voteAverage: Double?
+)
+
+data class VideoResponse(
+    @SerializedName("results") val results: List<VideoResult>
+)
+
+data class VideoResult(
+    @SerializedName("key") val key: String,
+    @SerializedName("site") val site: String,
+    @SerializedName("type") val type: String
 )
 
 interface TmdbApiService {
@@ -39,6 +50,18 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "he-IL"
     ): TmdbResponse
+
+    @GET("movie/{movie_id}/videos")
+    suspend fun getMovieVideos(
+        @retrofit2.http.Path("movie_id") movieId: Int,
+        @Query("api_key") apiKey: String
+    ): VideoResponse
+
+    @GET("tv/{tv_id}/videos")
+    suspend fun getTvVideos(
+        @retrofit2.http.Path("tv_id") tvId: Int,
+        @Query("api_key") apiKey: String
+    ): VideoResponse
 
     companion object {
         private const val BASE_URL = "https://api.themoviedb.org/3/"
