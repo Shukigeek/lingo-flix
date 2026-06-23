@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
+    // id("com.google.gms.google-services") // Removed because google-services.json is missing
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         applicationId = "com.example.lingoFlix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.2"
+        versionCode = 11
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -65,6 +66,50 @@ androidComponents {
         }
     }
 }
+
+// --- Code Quality Build Task ---
+tasks.register("checkCodeQuality") {
+    group = "verification"
+    description = "Checks for 300-line rule and basic code standards."
+    
+    doLast {
+        val srcDir = file("src/main/java/com/example/lingoFlix")
+        var failed = false
+        val report = StringBuilder()
+        
+        srcDir.walkTopDown().filter { it.extension == "kt" }.forEach { file ->
+            val lines = file.readLines()
+            
+            // 1. Check line count
+            if (lines.size > 300) {
+                report.append("[FAIL] ${file.name} is too long (${lines.size} lines). Limit is 300.\n")
+                failed = true
+            }
+            
+            // 2. Check for try-catch in non-trivial files (simple heuristic)
+            if (lines.size > 50 && !lines.any { it.contains("try {") || it.contains("try{") }) {
+                report.append("[WARN] ${file.name} might be missing try-catch blocks.\n")
+            }
+
+            // 3. Check for LingoLog usage
+            if (lines.size > 50 && !lines.any { it.contains("LingoLog") }) {
+                report.append("[WARN] ${file.name} should use LingoLog for consistency.\n")
+            }
+        }
+        
+        if (failed) {
+            throw GradleException("Code Quality checks failed:\n$report")
+        } else {
+            println("Code Quality checks passed!\n$report")
+        }
+    }
+}
+
+// Hook into the build process
+tasks.named("preBuild") {
+    dependsOn("checkCodeQuality")
+}
+// -------------------------------
 
 kotlin {
     jvmToolchain(11)
@@ -120,6 +165,11 @@ dependencies {
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
+
+    // Firebase - Commented out because google-services.json is missing
+    // implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    // implementation("com.google.firebase:firebase-firestore-ktx")
+    // implementation("com.google.firebase:firebase-analytics-ktx")
 }
 
 

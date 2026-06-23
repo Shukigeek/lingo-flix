@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.example.lingoFlix.utils.LingoLog
+
 // Duolingo Colors
 val DuoGreen = Color(0xFF58CC02)
 val DuoDarkGreen = Color(0xFF46A302)
@@ -48,7 +50,10 @@ fun DuoButton(
                 interactionSource = interactionSource,
                 indication = null,
                 enabled = enabled,
-                onClick = onClick
+                onClick = {
+                    LingoLog.d("DuoButton", "Button clicked: $text")
+                    onClick()
+                }
             )
     ) {
         // Shadow (Darker part)
@@ -125,6 +130,7 @@ fun FeedbackBanner(
     // Sound effect
     LaunchedEffect(isVisible) {
         if (isVisible) {
+            LingoLog.i("FeedbackBanner", "Showing feedback: isCorrect=$isCorrect")
             val soundUri = if (isCorrect) {
                 android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
             } else {
@@ -134,7 +140,9 @@ fun FeedbackBanner(
                 val mediaPlayer = android.media.MediaPlayer.create(context, soundUri)
                 mediaPlayer.start()
                 mediaPlayer.setOnCompletionListener { it.release() }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                LingoLog.e("FeedbackBanner", "Error playing sound", e)
+            }
         }
     }
 

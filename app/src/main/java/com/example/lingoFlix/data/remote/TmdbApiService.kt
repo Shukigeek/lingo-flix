@@ -1,5 +1,6 @@
 package com.example.lingoFlix.data.remote
 
+import com.example.lingoFlix.utils.LingoLog
 import com.google.gson.annotations.SerializedName
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -67,11 +68,16 @@ interface TmdbApiService {
         private const val BASE_URL = "https://api.themoviedb.org/3/"
 
         fun create(): TmdbApiService {
-            return Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
-                .create(TmdbApiService::class.java)
+            return try {
+                Retrofit.Builder()
+                    .baseUrl(BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+                    .create(TmdbApiService::class.java)
+            } catch (e: Exception) {
+                LingoLog.e("TmdbApiService", "Failed to create Retrofit service", e)
+                throw e
+            }
         }
     }
 }

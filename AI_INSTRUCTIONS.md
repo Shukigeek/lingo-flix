@@ -1,13 +1,19 @@
 # LingoFlix AI Project Instructions
 
-## 1. Coding Standards
+## 1. Core Values & Priorities
+- **Efficiency (Surgical Edits):** Prefer `replace_file_content` over `write_file`. Only rewrite the whole file if structural changes are massive.
+- **Developer Autonomy:** Build tools that allow the "Main Developer" to manage content (Recommendations, Databases) through the UI/simple config without deep code changes.
+- **High Technical Standard:** Maintain extreme clarity in naming, logs, and error handling.
+- **Verification First:** Never report a task as complete without running Gradle checks/tests.
+
+## 2. Coding Standards
 - **Single Responsibility Principle (SRP):** Each class/function must do one thing.
-- **File Length Limit:** Maximum 200 lines per file. Split components into sub-files if they exceed this.
-- **Naming Convention:** Use descriptive variable and function names (even 7-8 words) to ensure absolute clarity.
-- **Error Handling:** Every major operation must be wrapped in `try-catch` blocks with specific error handling.
-- **Logging:** Use the centralized `LingoLog` utility for all logs. Every entry/exit point and error must be logged.
-- **Type Safety:** Use explicit type hints everywhere. Avoid `Any` or implicit types.
-- **Language:** UI/Comments for user in Hebrew; Code, variable names, and internal documentation in English.
+- **File Length Limit:** Maximum 200 lines per file.
+- **Naming Convention:** Descriptive (7-8 words if needed). Clarity > Brevity.
+- **Error Handling:** `try-catch` blocks on all IO/Network/DB operations.
+- **Logging:** Centralized `LingoLog`. Log every entry, exit, and exception.
+- **Type Safety:** Explicit type hints everywhere.
+- **Language:** UI/Comments in Hebrew; Code/Docs in English.
 
 ## 2. Architecture (MVVM + Clean)
 - **UI:** Jetpack Compose only.

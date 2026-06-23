@@ -6,7 +6,10 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import android.util.Log
+import com.example.lingoFlix.utils.LingoLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -33,7 +36,7 @@ object FileUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.e("FileUtils", "Error getting file name from cursor", e)
+            LingoLog.e("FileUtils", "Error getting file name from cursor", e)
         }
 
         // If name is still null or just a number (common for some providers), try to get it from URI path
@@ -75,11 +78,33 @@ object FileUtils {
                     input.copyTo(output)
                 }
             }
+
+            // Create initial metadata for the database
+            val metadata = createInitialMetadata(targetFile)
+            val database = com.example.lingoFlix.data.AppDatabase.getDatabase(context)
+            CoroutineScope(Dispatchers.IO).launch {
+                database.videoMetadataDao().insertMetadata(metadata)
+            }
+
             targetFile
         } catch (e: Exception) {
-            Log.e("FileUtils", "Error saving video", e)
+            LingoLog.e("FileUtils", "Error saving video", e)
             null
         }
+    }
+
+    private fun createInitialMetadata(file: File): com.example.lingoFlix.model.VideoMetadata {
+        val name = file.nameWithoutExtension
+        // Try to parse Season/Episode (e.g., S01E05)
+        val regex = Regex("[sS](\\d{1,2})[eE](\\d{1,2})")
+        val match = regex.find(name)
+        
+        return com.example.lingoFlix.model.VideoMetadata(
+            filePath = file.absolutePath,
+            title = if (match != null) name.substringBefore(match.value).trim() else name,
+            season = match?.groupValues?.get(1)?.toIntOrNull(),
+            episode = match?.groupValues?.get(2)?.toIntOrNull()
+        )
     }
 
     fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null, videoName: String? = null): File? {
@@ -107,7 +132,7 @@ object FileUtils {
             }
             targetFile
         } catch (e: Exception) {
-            Log.e("FileUtils", "Error saving subtitle", e)
+            LingoLog.e("FileUtils", "Error saving subtitle", e)
             null
         }
     }

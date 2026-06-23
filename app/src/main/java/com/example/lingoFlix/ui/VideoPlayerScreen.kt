@@ -56,10 +56,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.ui.components.*
-import com.example.lingoFlix.utils.FileUtils
-import com.example.lingoFlix.utils.SrtParser
-import com.example.lingoFlix.utils.SubtitleGenerator
-import com.example.lingoFlix.util.SoundManager
+import com.example.lingoFlix.utils.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.dionsegijn.konfetti.compose.KonfettiView
@@ -106,6 +103,7 @@ fun VideoPlayerScreen(
                 targetUri.toString().hashCode().toString()
             }
         } catch (e: Exception) {
+            LingoLog.e("VideoPlayerScreen", "Error getting video filename", e)
             "unknown"
         }
     }
@@ -114,42 +112,40 @@ fun VideoPlayerScreen(
 
     LaunchedEffect(videoFileName, clips) {
         if (clips != null && videoFileName != "unknown" && !isRandomMode) {
-            val prefs = context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
-            val progress = prefs.getInt("progress_$videoFileName", -1)
-            if (progress > 0 && progress < clips.size) {
-                savedIndex = progress
-                showResumeDialog = true
+            try {
+                val prefs = context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
+                val progress = prefs.getInt("progress_$videoFileName", -1)
+                if (progress > 0 && progress < clips.size) {
+                    savedIndex = progress
+                    showResumeDialog = true
+                }
+            } catch (e: Exception) {
+                LingoLog.e("VideoPlayerScreen", "Error loading progress", e)
             }
         }
     }
 
     LaunchedEffect(currentClipIndex) {
         if (clips != null && videoFileName != "unknown" && !isRandomMode) {
-            context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
-                .edit()
-                .putInt("progress_$videoFileName", currentClipIndex)
-                .apply()
+            try {
+                context.getSharedPreferences("learning_progress", Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("progress_$videoFileName", currentClipIndex)
+                    .apply()
+            } catch (e: Exception) {
+                LingoLog.e("VideoPlayerScreen", "Error saving progress", e)
+            }
         }
     }
 
     if (showResumeDialog) {
-        AlertDialog(
-            onDismissRequest = { showResumeDialog = false },
-            title = { Text("המשך תרגול") },
-            text = { Text("נראה שהיית באמצע התרגול. האם להמשיך ממשפט ${savedIndex + 1}?") },
-            confirmButton = {
-                Button(onClick = {
-                    currentClipIndex = savedIndex
-                    showResumeDialog = false
-                }) {
-                    Text("המשך")
-                }
+        ResumeDialog(
+            savedIndex = savedIndex,
+            onConfirm = {
+                currentClipIndex = savedIndex
+                showResumeDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showResumeDialog = false }) {
-                    Text("התחל מהתחלה")
-                }
-            }
+            onDismiss = { showResumeDialog = false }
         )
     }
     
@@ -492,55 +488,17 @@ fun VideoPlayerScreen(
     }
 
     if (showStyleDialog) {
-        AlertDialog(
-            onDismissRequest = { showStyleDialog = false },
-            title = { Text("עיצוב כתוביות") },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text("גודל טקסט: ${subtitleFontSize.toInt()}")
-                    Slider(
-                        value = subtitleFontSize,
-                        onValueChange = { subtitleFontSize = it },
-                        valueRange = 16f..60f
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text("סוג גופן:")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        listOf("SansSerif", "Serif", "Monospace", "Cursive").forEach { font ->
-                            FilterChip(
-                                selected = subtitleFontFamily == font,
-                                onClick = { subtitleFontFamily = font },
-                                label = { Text(font, fontSize = 10.sp) }
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = subtitleIsBold, onCheckedChange = { subtitleIsBold = it })
-                        Text("טקסט מודגש (Bold)")
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("צבע טקסט:")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        listOf("#FFFFFF", "#FFFF00", "#00FF00", "#FF0000", "#00FFFF", "#FF00FF", "#FFA500", "#A9A9A9").forEach { color ->
-                            Box(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .size(40.dp)
-                                    .background(Color(android.graphics.Color.parseColor(color)), CircleShape)
-                                    .border(if (subtitleColorHex == color) 3.dp else 1.dp, if (subtitleColorHex == color) MaterialTheme.colorScheme.primary else Color.LightGray, CircleShape)
-                                    .clickable { subtitleColorHex = color }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
+        SubtitleStyleDialog(
+            fontSize = subtitleFontSize,
+            onFontSizeChange = { subtitleFontSize = it },
+            fontFamily = subtitleFontFamily,
+            onFontFamilyChange = { subtitleFontFamily = it },
+            isBold = subtitleIsBold,
+            onBoldChange = { subtitleIsBold = it },
+            colorHex = subtitleColorHex,
+            onColorChange = { subtitleColorHex = it },
+            onSave = {
+                try {
                     sharedPrefs.edit()
                         .putFloat("sub_font_size", subtitleFontSize)
                         .putString("sub_color", subtitleColorHex)
@@ -548,10 +506,11 @@ fun VideoPlayerScreen(
                         .putString("sub_font_family", subtitleFontFamily)
                         .apply()
                     showStyleDialog = false
-                }) {
-                    Text("שמור")
+                } catch (e: Exception) {
+                    LingoLog.e("VideoPlayerScreen", "Error saving subtitle styles", e)
                 }
-            }
+            },
+            onDismiss = { showStyleDialog = false }
         )
     }
 
@@ -566,116 +525,49 @@ fun VideoPlayerScreen(
     }
 
     if (showSearchDialog) {
-        AlertDialog(
-            onDismissRequest = { showSearchDialog = false },
-            title = { Text("חיפוש כתוביות") },
-            text = {
-                Column {
-                    val videoName = remember(videoUri) { 
-                        if (videoUri.scheme == "file") File(videoUri.path!!).nameWithoutExtension else "סרטון"
-                    }
-                    LaunchedEffect(Unit) { if (subtitleSearchQuery.isEmpty()) subtitleSearchQuery = videoName }
-                    
-                    TextField(
-                        value = subtitleSearchQuery, 
-                        onValueChange = { subtitleSearchQuery = it }, 
-                        placeholder = { Text("שם הסרט/סדרה") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${subtitleSearchQuery}+subtitles+srt"))) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { 
-                        Icon(Icons.Default.Search, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("חפש ב-Google") 
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ktuvit.me/Movie/Search?q=${subtitleSearchQuery}"))) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) { 
-                        Icon(Icons.Default.Link, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("חפש ב-Ktuvit (מומלץ)") 
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { importSubtitleLauncher.launch("*/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) { 
-                        Icon(Icons.Default.FileOpen, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("ייבוא קובץ SRT קיים") 
-                    }
-                    
-                    if (videoUri.scheme == "file") {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    showSearchDialog = false
-                                    isGeneratingSubtitles = true
-                                    val videoFile = File(videoUri.path!!)
-                                    val result = SubtitleGenerator.generateSubtitles(context, videoFile, userId) { generationProgress = it }
-                                    isGeneratingSubtitles = false
-                                    result.onSuccess {
-                                        Toast.makeText(context, "כתוביות נוצרו בהצלחה!", Toast.LENGTH_SHORT).show()
-                                        subtitlesGeneratedTrigger++
-                                    }.onFailure {
-                                        Toast.makeText(context, "שגיאה ביצירה: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("ייצר בעזרת AI (לוקח זמן)")
+        SubtitleSearchDialog(
+            videoUri = videoUri,
+            searchQuery = subtitleSearchQuery,
+            onSearchQueryChange = { subtitleSearchQuery = it },
+            onGoogleSearch = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${subtitleSearchQuery}+subtitles+srt"))) },
+            onKtuvitSearch = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ktuvit.me/Movie/Search?q=${subtitleSearchQuery}"))) },
+            onImportFile = { importSubtitleLauncher.launch("*/*") },
+            onGenerateAI = {
+                scope.launch {
+                    try {
+                        showSearchDialog = false
+                        isGeneratingSubtitles = true
+                        val videoFile = File(videoUri.path!!)
+                        val result = SubtitleGenerator.generateSubtitles(context, videoFile, userId) { generationProgress = it }
+                        isGeneratingSubtitles = false
+                        result.onSuccess {
+                            Toast.makeText(context, "כתוביות נוצרו בהצלחה!", Toast.LENGTH_SHORT).show()
+                            subtitlesGeneratedTrigger++
+                        }.onFailure {
+                            LingoLog.e("VideoPlayerScreen", "AI Subtitle generation failed", it)
+                            Toast.makeText(context, "שגיאה ביצירה: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
+                    } catch (e: Exception) {
+                        LingoLog.e("VideoPlayerScreen", "Exception during subtitle generation", e)
+                        isGeneratingSubtitles = false
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { showSearchDialog = false }) { Text("סגור") } }
+            onDismiss = { showSearchDialog = false }
         )
     }
 
     if (showSyncTest) {
-        AlertDialog(
-            onDismissRequest = { showSyncTest = false },
-            title = { Text("בדיקת סנכרון כתוביות") },
-            text = {
-                Column {
-                    Text("האם הכתוביות תואמות לסרטון?")
-                    Text("נבדוק 3 נקודות זמן שונות.", style = MaterialTheme.typography.bodySmall)
+        SyncTestDialog(
+            onSeek = { percentage ->
+                try {
+                    exoPlayer.seekTo((exoPlayer.duration * percentage).toLong())
+                    exoPlayer.play()
+                } catch (e: Exception) {
+                    LingoLog.e("VideoPlayerScreen", "Seek error during sync test", e)
                 }
             },
-            confirmButton = {
-                Button(onClick = { showSyncTest = false }) {
-                    Text("הבנתי")
-                }
-            },
-            dismissButton = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { 
-                        exoPlayer.seekTo((exoPlayer.duration * 0.1).toLong())
-                        exoPlayer.play()
-                    }) { Text("בדוק התחלה (10%)") }
-                    Button(onClick = { 
-                        exoPlayer.seekTo((exoPlayer.duration * 0.5).toLong())
-                        exoPlayer.play()
-                    }) { Text("בדוק אמצע (50%)") }
-                    Button(onClick = { 
-                        exoPlayer.seekTo((exoPlayer.duration * 0.9).toLong())
-                        exoPlayer.play()
-                    }) { Text("בדוק סוף (90%)") }
-                }
-            }
+            onDismiss = { showSyncTest = false }
         )
     }
 
@@ -698,167 +590,26 @@ fun VideoPlayerScreen(
         }
 
         if (isGeneratingSubtitles) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color.Black.copy(alpha = 0.7f)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "מייצר כתוביות בעזרת AI...",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = generationProgress,
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            GenerationOverlay(progress = generationProgress)
         }
 
         // HUD: Hearts, Combo, Auto-Advance
         if (isQuizMode && !isSessionComplete) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                // First Row: Hearts
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Hearts
-                    repeat(10) { index ->
-                        val isLost = index >= heartsLeft
-                        val scale by animateFloatAsState(if (isLost) 0.8f else 1.2f, label = "heartScale")
-                        val alpha by animateFloatAsState(if (isLost) 0.3f else 1f, label = "heartAlpha")
-                        
-                        Icon(
-                            imageVector = if (isLost) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
-                            contentDescription = "Heart",
-                            tint = if (isLost) Color.Gray else Color.Red,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .scale(scale)
-                                .alpha(alpha)
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                    }
-                }
-
-                // Second Row: Combo Badge (to avoid overlap with top controls)
-                if (comboCount >= 2) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        val multiplier = when {
-                            comboCount >= 10 -> 10
-                            comboCount >= 5 -> 5
-                            comboCount >= 3 -> 3
-                            else -> 2
-                        }
-                        
-                        val infiniteTransition = rememberInfiniteTransition(label = "comboPulse")
-                        val scale by infiniteTransition.animateFloat(
-                            initialValue = 1f,
-                            targetValue = 1.1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(500),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "comboScale"
-                        )
-
-                        Surface(
-                            color = Color(0xFFFF9600),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.scale(scale)
-                        ) {
-                            Text(
-                                text = "🔥 ${multiplier}x COMBO!",
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-                }
-            }
+            QuizHUD(heartsLeft = heartsLeft, comboCount = comboCount)
         }
         
         // Custom HUD (Top Controls)
         Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(modifier = Modifier.statusBarsPadding().height(64.dp)) // Added spacer to push controls below HUD
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { showStyleDialog = true },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                    ) {
-                        Icon(Icons.Default.Palette, contentDescription = "Subtitle Style", tint = Color.White)
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    IconButton(
-                        onClick = { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f },
-                        modifier = Modifier.background(
-                            if (playbackSpeed < 1.0f) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
-                            shape = MaterialTheme.shapes.small
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (playbackSpeed < 1.0f) Icons.Default.SlowMotionVideo else Icons.Default.PlayCircle, 
-                            contentDescription = "Playback Speed",
-                            tint = Color.White
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = { showSearchDialog = true },
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                    ) {
-                        Icon(Icons.Default.Subtitles, contentDescription = "Subtitle Search", tint = Color.White)
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                }
-
-                IconButton(
-                    onClick = { isFullScreen = !isFullScreen },
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
-                ) {
-                    Icon(
-                        imageVector = if (isFullScreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                        contentDescription = "Toggle Fullscreen",
-                        tint = Color.White
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.statusBarsPadding().height(64.dp))
+            TopControls(
+                isFullScreen = isFullScreen,
+                onFullScreenToggle = { isFullScreen = !isFullScreen },
+                playbackSpeed = playbackSpeed,
+                onPlaybackSpeedToggle = { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f },
+                onStyleClick = { showStyleDialog = true },
+                onSearchClick = { showSearchDialog = true },
+                onBack = onBack
+            )
 
             if (clips == null && allClipsForThisVideo.isEmpty()) {
                 LaunchedEffect(Unit) {
@@ -935,86 +686,21 @@ fun VideoPlayerScreen(
                     label = "borderColor"
                 )
 
-                Surface(
-                    color = Color.Black.copy(alpha = 0.5f), // Semi-transparent background
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f) // Don't take full width
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 32.dp)
-                        .offset(x = shakeOffset.value.dp)
-                        .border(
-                            2.dp, 
-                            if (flashColor != Color.Transparent) flashColor else borderColor.copy(alpha = 0.3f), 
-                            RoundedCornerShape(16.dp)
-                        ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Box(modifier = Modifier.background(flashColor.copy(alpha = 0.1f))) {
-                        val text = currentClip.text
-                        val isRtl = detectedLanguage == "עברית"
-                        val textColor = try { Color(android.graphics.Color.parseColor(subtitleColorHex)) } catch(e: Exception) { Color.White }
-                        
-                        Column(modifier = Modifier.padding(20.dp).fillMaxWidth()) {
-                            CompositionLocalProvider(
-                                LocalLayoutDirection provides (if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr)
-                            ) {
-                                if (isQuizMode && hiddenIndices.isNotEmpty()) {
-                                    FlowRow(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        wordsList.forEachIndexed { index, word ->
-                                            if (hiddenIndices.contains(index)) {
-                                                val isWordCorrect = userInput.split(Regex("\\s+")).any { it.trim().equals(word.trim(), ignoreCase = true) }
-                                                Text(
-                                                    text = if (isChecked) word else "____",
-                                                    color = if (!isChecked) Color.Yellow else if (isWordCorrect) Color.Green else Color.Red,
-                                                    fontSize = subtitleFontSize.sp,
-                                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                    fontFamily = currentFontFamily,
-                                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                        textAlign = TextAlign.Center,
-                                                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
-                                                    ),
-                                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = word,
-                                                    color = textColor,
-                                                    fontSize = subtitleFontSize.sp,
-                                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                                    fontFamily = currentFontFamily,
-                                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                                        textAlign = TextAlign.Center,
-                                                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
-                                                    ),
-                                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Text(
-                                        text = text,
-                                        color = textColor,
-                                        fontSize = subtitleFontSize.sp,
-                                        fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                                        fontFamily = currentFontFamily,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = MaterialTheme.typography.headlineSmall.copy(
-                                            textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                            shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
-                                        ),
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                SubtitleSection(
+                    text = currentClip.text,
+                    isQuizMode = isQuizMode,
+                    hiddenIndices = hiddenIndices,
+                    wordsList = wordsList,
+                    userInput = userInput,
+                    isChecked = isChecked,
+                    detectedLanguage = detectedLanguage,
+                    subtitleColorHex = subtitleColorHex,
+                    subtitleFontSize = subtitleFontSize,
+                    subtitleIsBold = subtitleIsBold,
+                    currentFontFamily = currentFontFamily,
+                    shakeOffset = shakeOffset.value,
+                    flashColor = flashColor
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -1054,91 +740,63 @@ fun VideoPlayerScreen(
                     }
                 }
 
-                if (isQuizMode && !isChecked) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            value = userInput,
-                            onValueChange = { userInput = it },
-                            placeholder = { Text("הקלד את המילים החסרות...") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            trailingIcon = {
-                                IconButton(onClick = { isChecked = true }) {
-                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Check")
-                                }
-                            }
-                        )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        // Mic button removed for now as requested
-                    }
-                } else if (isQuizMode && isChecked) {
+                if (isQuizMode) {
                     val hiddenWords = wordsList.filterIndexed { index, _ -> hiddenIndices.contains(index) }.joinToString(" ")
-                    val allCorrect = hiddenIndices.all { idx ->
+                    val allCorrect = isChecked && hiddenIndices.all { idx ->
                         userInput.split(Regex("\\s+")).any { it.trim().equals(wordsList[idx].trim(), ignoreCase = true) }
                     }
                     
-                    LaunchedEffect(isChecked) {
-                        if (allCorrect) {
-                            correctCount++
-                            comboCount++
-                            val multiplier = when {
-                                comboCount >= 10 -> 10
-                                comboCount >= 5 -> 5
-                                comboCount >= 3 -> 3
-                                comboCount >= 2 -> 2
-                                else -> 1
-                            }
-                            onCorrectAnswer(multiplier)
-                    // SoundManager.playCorrect()
-                            
-                            // Flash Green
-                            flashColor = Color.Green
-                            
-                            delay(500)
-                            flashColor = Color.Transparent
+                    QuizInputSection(
+                        userInput = userInput,
+                        onUserInputChange = { userInput = it },
+                        onCheck = { isChecked = true },
+                        isChecked = isChecked,
+                        allCorrect = allCorrect,
+                        hiddenWords = hiddenWords
+                    )
 
-                            confettiState = listOf(
-                                Party(
-                                    speed = 0f,
-                                    maxSpeed = 30f,
-                                    damping = 0.9f,
-                                    angle = 270,
-                                    spread = 360,
-                                    colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xbdb2ff, 0x9bf6ff),
-                                    position = Position.Relative(0.5, 0.3),
-                                    emitter = Emitter(duration = 100).max(100)
+                    LaunchedEffect(isChecked) {
+                        if (isChecked) {
+                            if (allCorrect) {
+                                correctCount++
+                                comboCount++
+                                val multiplier = when {
+                                    comboCount >= 10 -> 10
+                                    comboCount >= 5 -> 5
+                                    comboCount >= 3 -> 3
+                                    comboCount >= 2 -> 2
+                                    else -> 1
+                                }
+                                onCorrectAnswer(multiplier)
+                                flashColor = Color.Green
+                                delay(500)
+                                flashColor = Color.Transparent
+                                confettiState = listOf(
+                                    Party(
+                                        speed = 0f,
+                                        maxSpeed = 30f,
+                                        damping = 0.9f,
+                                        angle = 270,
+                                        spread = 360,
+                                        colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xbdb2ff, 0x9bf6ff),
+                                        position = Position.Relative(0.5, 0.3),
+                                        emitter = Emitter(duration = 100).max(100)
+                                    )
                                 )
-                            )
-                        } else {
-                            comboCount = 0
-                            heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
-                    // SoundManager.playWrong()
-                            flashColor = Color.Red
-                            
-                            // Shake Animation
-                            repeat(3) {
-                                shakeOffset.animateTo(10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
-                                shakeOffset.animateTo(-10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                            } else {
+                                comboCount = 0
+                                heartsLeft = (heartsLeft - 1).coerceAtLeast(0)
+                                flashColor = Color.Red
+                                repeat(3) {
+                                    shakeOffset.animateTo(10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                                    shakeOffset.animateTo(-10f, animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                                }
+                                shakeOffset.animateTo(0f)
+                                delay(500)
+                                flashColor = Color.Transparent
                             }
-                            shakeOffset.animateTo(0f)
-                            
-                            delay(500)
-                            flashColor = Color.Transparent
                         }
                     }
-
-                    Text(
-                        text = if (allCorrect) "כל הכבוד! ✨" else "המילים היו: $hiddenWords",
-                        color = if (allCorrect) Color.Green else Color.Red,
-                        modifier = Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
                 }
 
                 Row(
@@ -1179,117 +837,54 @@ fun VideoPlayerScreen(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.92f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "🎬 סיימת את האימון!",
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text(
-                        text = "ענית נכון על $correctCount מתוך $totalAttempted משפטים",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 18.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    val sessionXP = correctCount * when(difficulty) {
-                        "בינוני" -> 30
-                        "קשה" -> 40
-                        else -> 20
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(
-                        text = "+$sessionXP XP נצברו!",
-                        color = Color(0xFFFFC107),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(40.dp))
-                    
-                    DuoButton(
-                        text = "שחק שוב",
-                        onClick = {
-                            isSessionComplete = false
-                            correctCount = 0
-                            totalAttempted = 0
-                            currentClipIndex = 0
-                            userInput = ""
-                            isChecked = false
-                        },
-                        color = DuoGreen,
-                        darkColor = DuoDarkGreen,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    DuoButton(
-                        text = "חזור לבית",
-                        onClick = onBack,
-                        color = DuoBlue,
-                        darkColor = DuoBlue.copy(alpha = 0.8f),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
+            SessionCompleteOverlay(
+                correctCount = correctCount,
+                totalAttempted = totalAttempted,
+                difficulty = difficulty,
+                onPlayAgain = {
+                    isSessionComplete = false
+                    correctCount = 0
+                    totalAttempted = 0
+                    currentClipIndex = 0
+                    userInput = ""
+                    isChecked = false
+                },
+                onBack = onBack
+            )
             
             LaunchedEffect(isSessionComplete) {
                 if (isSessionComplete) {
-                    confettiState = listOf(
-                        Party(
-                            speed = 0f,
-                            maxSpeed = 30f,
-                            damping = 0.9f,
-                            angle = 270,
-                            spread = 360,
-                            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xbdb2ff, 0x9bf6ff),
-                            position = Position.Relative(0.5, 0.3),
-                            emitter = Emitter(duration = 200).max(200)
+                    try {
+                        confettiState = listOf(
+                            Party(
+                                speed = 0f,
+                                maxSpeed = 30f,
+                                damping = 0.9f,
+                                angle = 270,
+                                spread = 360,
+                                colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xbdb2ff, 0x9bf6ff),
+                                position = Position.Relative(0.5, 0.3),
+                                emitter = Emitter(duration = 200).max(200)
+                            )
                         )
-                    )
+                    } catch (e: Exception) {
+                        LingoLog.e("VideoPlayerScreen", "Error showing confetti", e)
+                    }
                 }
             }
         }
         // Game Over Dialog
         if (isQuizMode && heartsLeft == 0 && !isSessionComplete) {
-            AlertDialog(
-                onDismissRequest = { },
-                title = { Text("המשחק נגמר! 💔") },
-                text = { Text("השתמשת בכל הלבבות שלך. השלמת $currentClipIndex משפטים.") },
-                confirmButton = {
-                    Button(onClick = {
-                        heartsLeft = 10
-                        currentClipIndex = 0
-                        userInput = ""
-                        isChecked = false
-                        comboCount = 0
-                    }) {
-                        Text("נסה שוב")
-                    }
+            GameOverDialog(
+                completedCount = currentClipIndex,
+                onRetry = {
+                    heartsLeft = 10
+                    currentClipIndex = 0
+                    userInput = ""
+                    isChecked = false
+                    comboCount = 0
                 },
-                dismissButton = {
-                    TextButton(onClick = onBack) {
-                        Text("חזור לרשימה")
-                    }
-                }
+                onBack = onBack
             )
         }
     }

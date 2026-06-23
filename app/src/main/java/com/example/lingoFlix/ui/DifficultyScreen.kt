@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.ui.components.DuoButton
 import com.example.lingoFlix.ui.components.DuoGray
 import com.example.lingoFlix.util.GameLogic
+import com.example.lingoFlix.utils.LingoLog
 
 @Composable
 fun DifficultyScreen(
@@ -58,7 +59,14 @@ fun DifficultyScreen(
             xp = "10 XP",
             icon = Icons.Default.ElectricBolt,
             color = Color(0xFF58CC02),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.EASY, "typing") }
+            onClick = { 
+                try {
+                    LingoLog.d("DifficultyScreen", "Easy difficulty selected")
+                    onDifficultySelected(GameLogic.Difficulty.EASY, "typing") 
+                } catch (e: Exception) {
+                    LingoLog.e("DifficultyScreen", "Error selecting EASY", e)
+                }
+            }
         )
 // ...
 
@@ -70,7 +78,14 @@ fun DifficultyScreen(
             xp = "20 XP",
             icon = Icons.Default.Star,
             color = Color(0xFFFFB800),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.MEDIUM, "typing") }
+            onClick = { 
+                try {
+                    LingoLog.d("DifficultyScreen", "Medium difficulty selected")
+                    onDifficultySelected(GameLogic.Difficulty.MEDIUM, "typing") 
+                } catch (e: Exception) {
+                    LingoLog.e("DifficultyScreen", "Error selecting MEDIUM", e)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -81,14 +96,28 @@ fun DifficultyScreen(
             xp = "50 XP",
             icon = Icons.Default.Psychology,
             color = Color(0xFFEA2B2B),
-            onClick = { onDifficultySelected(GameLogic.Difficulty.HARD, "typing") }
+            onClick = { 
+                try {
+                    LingoLog.d("DifficultyScreen", "Hard difficulty selected")
+                    onDifficultySelected(GameLogic.Difficulty.HARD, "typing") 
+                } catch (e: Exception) {
+                    LingoLog.e("DifficultyScreen", "Error selecting HARD", e)
+                }
+            }
         )
         
         Spacer(modifier = Modifier.height(32.dp))
 
         DuoButton(
             text = "צפייה רגילה (ללא Quiz)",
-            onClick = onRegularView,
+            onClick = {
+                try {
+                    LingoLog.i("DifficultyScreen", "Regular view selected")
+                    onRegularView()
+                } catch (e: Exception) {
+                    LingoLog.e("DifficultyScreen", "Error in onRegularView", e)
+                }
+            },
             color = Color(0xFFFF8A00), // Vibrant Orange
             darkColor = Color(0xFFE67C00),
             modifier = Modifier.fillMaxWidth()

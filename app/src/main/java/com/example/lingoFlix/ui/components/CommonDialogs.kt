@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.lingoFlix.utils.OfflineTranslator
+import com.example.lingoFlix.utils.LingoLog
 import android.content.Context
 
 @Composable
@@ -108,6 +109,7 @@ fun XRayDialog(
             }
             isLoading = false
         } catch (e: Exception) {
+            LingoLog.e("CommonDialogs", "X-Ray Analysis failed", e)
             error = "שגיאה: ${e.localizedMessage}\nוודא שיש חיבור להורדת חבילת השפה בשימוש ראשון."
             isLoading = false
         }

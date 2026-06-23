@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.lingoFlix.utils.LingoLog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -42,25 +43,33 @@ fun BattleScreen(
     var correctAnswer by remember { mutableStateOf("תפוח") }
 
     fun nextQuestion() {
-        val questions = listOf(
-            "Apple" to listOf("תפוח", "בננה", "תפוז", "אפרסק"),
-            "Book" to listOf("ספר", "מחברת", "עט", "שולחן"),
-            "Water" to listOf("מים", "מיץ", "חלב", "קפה"),
-            "Friend" to listOf("חבר", "אח", "מורה", "שכן")
-        )
-        val next = questions.random()
-        currentQuestion = next.first
-        options = next.second.shuffled()
-        correctAnswer = next.second[0]
+        try {
+            val questions = listOf(
+                "Apple" to listOf("תפוח", "בננה", "תפוז", "אפרסק"),
+                "Book" to listOf("ספר", "מחברת", "עט", "שולחן"),
+                "Water" to listOf("מים", "מיץ", "חלב", "קפה"),
+                "Friend" to listOf("חבר", "אח", "מורה", "שכן")
+            )
+            val next = questions.random()
+            currentQuestion = next.first
+            options = next.second.shuffled()
+            correctAnswer = next.second[0]
+        } catch (e: Exception) {
+            LingoLog.e("BattleScreen", "Error generating next question", e)
+        }
     }
 
     LaunchedEffect(Unit) {
-        while (timeLeft > 0) {
-            delay(1000)
-            timeLeft--
+        try {
+            while (timeLeft > 0) {
+                delay(1000)
+                timeLeft--
+            }
+            isGameOver = true
+            onScoreUpdate(score)
+        } catch (e: Exception) {
+            LingoLog.e("BattleScreen", "Timer error", e)
         }
-        isGameOver = true
-        onScoreUpdate(score)
     }
 
     Scaffold(

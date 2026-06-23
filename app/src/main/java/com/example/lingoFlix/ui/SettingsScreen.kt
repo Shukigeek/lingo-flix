@@ -20,12 +20,14 @@ import androidx.compose.ui.platform.LocalContext
 fun SettingsScreen(
     currentGeminiApiKey: String,
     currentTmdbApiKey: String,
-    onSaveKeys: (String, String) -> Unit,
+    currentAnthropicApiKey: String = "",
+    onSaveKeys: (String, String, String) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     var geminiApiKey by remember { mutableStateOf(currentGeminiApiKey) }
     var tmdbApiKey by remember { mutableStateOf(currentTmdbApiKey) }
+    var anthropicApiKey by remember { mutableStateOf(currentAnthropicApiKey) }
 
     Scaffold(
         topBar = {
@@ -75,10 +77,22 @@ fun SettingsScreen(
             )
             
             Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = anthropicApiKey,
+                onValueChange = { anthropicApiKey = it },
+                label = { Text("Anthropic API Key (בונה הסקילים)") },
+                placeholder = { Text("הזן מפתח Anthropic כאן...") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
             
             Button(
                 onClick = {
-                    onSaveKeys(geminiApiKey, tmdbApiKey)
+                    onSaveKeys(geminiApiKey, tmdbApiKey, anthropicApiKey)
                     Toast.makeText(context, "המפתחות נשמרו!", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth()

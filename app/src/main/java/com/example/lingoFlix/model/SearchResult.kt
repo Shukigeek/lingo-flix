@@ -7,5 +7,6 @@ data class SearchResult(
     val description: String,
     val mediaType: String,
     val rating: Double = 0.0,
-    val youtubeVideoId: String? = null
+    val youtubeVideoId: String? = null,
+    val customTelegramLink: String? = null
 )

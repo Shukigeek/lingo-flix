@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.R
 import com.example.lingoFlix.ui.components.*
+import com.example.lingoFlix.utils.LingoLog
 import coil.compose.AsyncImage
+import com.example.lingoFlix.model.DynamicSkill
 import java.io.File
 import java.util.Calendar
 
@@ -42,7 +44,10 @@ fun DashboardScreen(
     onVideoSelected: (File) -> Unit = {},
     totalXP: Int = 0,
     currentStreak: Int = 0,
-    userName: String = "Lingo Learner"
+    userName: String = "Lingo Learner",
+    skills: List<DynamicSkill> = emptyList(),
+    onBuildSkill: () -> Unit = {},
+    onAdminClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     
@@ -53,7 +58,14 @@ fun DashboardScreen(
         containerColor = Color.Transparent, 
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onUploadVideo,
+                onClick = {
+                    try {
+                        LingoLog.d("DashboardScreen", "Upload video clicked")
+                        onUploadVideo()
+                    } catch (e: Exception) {
+                        LingoLog.e("DashboardScreen", "Error in onUploadVideo", e)
+                    }
+                },
                 containerColor = Color(0xFF58CC02), // DuoGreen
                 contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp)
@@ -76,69 +88,12 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp)
                 ) {
                     item {
-                        // User Profile Section
-                        Surface(
-                            color = Color.White.copy(alpha = 0.85f),
-                            shape = RoundedCornerShape(24.dp),
-                            shadowElevation = 4.dp
-                        ) {
-                            Column(modifier = Modifier.padding(20.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(onClick = onProfileClick)) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(60.dp)
-                                            .clip(RoundedCornerShape(30.dp))
-                                            .background(Color(0xFF1CB0F6)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(userName.take(1).uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Column {
-                                        Text(
-                                            text = "היי $userName! 👋",
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color(0xFF4B4B4B)
-                                        )
-                                        Text("מוכן לתרגול היומי?", color = Color.Gray)
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(20.dp))
-                                
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "רמה ${totalXP / 1000 + 1}",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF1CB0F6),
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                    Text(
-                                        text = "$xpInCurrentLevel / 1000 XP",
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF777777),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                LinearProgressIndicator(
-                                    progress = { userProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(12.dp)
-                                        .clip(RoundedCornerShape(6.dp)),
-                                    color = Color(0xFF58CC02),
-                                    trackColor = Color(0xFFE5E5E5),
-                                )
-                            }
-                        }
+                        UserProfileSection(
+                            userName = userName,
+                            totalXP = totalXP,
+                            onProfileClick = onProfileClick,
+                            onAdminClick = onAdminClick
+                        )
                     }
 
                     item {
@@ -173,7 +128,14 @@ fun DashboardScreen(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(Brush.horizontalGradient(listOf(Color(0xFFCE93D8), Color(0xFFBA68C8))))
-                                        .clickable(onClick = onRandomSentences)
+                                        .clickable {
+                                            try {
+                                                LingoLog.i("DashboardScreen", "Starting random sentences game")
+                                                onRandomSentences()
+                                            } catch (e: Exception) {
+                                                LingoLog.e("DashboardScreen", "Error starting random sentences", e)
+                                            }
+                                        }
                                         .padding(16.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,6 +175,46 @@ fun DashboardScreen(
                     item {
                         // Weekly Streak Section
                         WeeklyProgressSection(currentStreak)
+                    }
+
+                    if (skills.isNotEmpty()) {
+                        item {
+                            Text("הסקילים שלך", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF4B4B4B))
+                        }
+                        items(skills) { skill ->
+                            SkillCard(skill)
+                        }
+                    }
+
+                    item {
+                        // Skill Builder Section (The Meta-Skill)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    try {
+                                        LingoLog.i("DashboardScreen", "Skill builder clicked")
+                                        onBuildSkill()
+                                    } catch (e: Exception) {
+                                        LingoLog.e("DashboardScreen", "Error in onBuildSkill", e)
+                                    }
+                                },
+                            color = Color(0xFF1CB0F6).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(24.dp),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF1CB0F6).copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(20.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.AutoFixHigh, null, tint = Color(0xFF1CB0F6), modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("בונה הסקילים 🤖", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color(0xFF1CB0F6))
+                                    Text("צור יכולת חדשה לאפליקציה בעזרת AI", color = Color.Gray, fontSize = 14.sp)
+                                }
+                            }
+                        }
                     }
 
                     item {
@@ -265,182 +267,6 @@ fun DashboardScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun WeeklyProgressSection(streak: Int) {
-    Surface(
-        color = Color.White.copy(alpha = 0.85f),
-        shape = RoundedCornerShape(24.dp),
-        shadowElevation = 4.dp
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "התקדמות שבועית",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF4B4B4B)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val days = listOf("א", "ב", "ג", "ד", "ה", "ו", "ש")
-                val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1 // 0-based index
-                
-                days.forEachIndexed { index, day ->
-                    val isDone = index < today // Mock logic: assume previous days were done if streak is high
-                    DayCircle(day, isDone || (index == today && streak > 0))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DayCircle(day: String, isDone: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(if (isDone) Color(0xFFFF9600) else Color(0xFFE5E5E5)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isDone) {
-                Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF777777))
-    }
-}
-
-@Composable
-fun RecommendationItem(
-    title: String,
-    imageUrl: String,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.clip(RoundedCornerShape(16.dp)),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.7f)
-                .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF4B4B4B),
-            maxLines = 1,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun VideoCard(
-    file: File,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF7F7F7),
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E5E5)),
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1CB0F6).copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.PlayArrow, 
-                    contentDescription = null, 
-                    tint = Color(0xFF1CB0F6), 
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = file.name,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 16.sp,
-                color = Color(0xFF4B4B4B),
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
-            )
-            
-            Icon(
-                Icons.Default.ChevronLeft, 
-                contentDescription = null, 
-                tint = Color(0xFFAFAFAF), 
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun StatBox(
-    label: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF7F7F7),
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E5E5))
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF4B4B4B)
-            )
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                color = Color(0xFF777777),
-                fontWeight = FontWeight.ExtraBold
-            )
         }
     }
 }
