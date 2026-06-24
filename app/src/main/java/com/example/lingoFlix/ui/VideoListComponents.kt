@@ -89,8 +89,14 @@ fun GalleryItem(
             .fillMaxWidth()
             .aspectRatio(0.8f)
             .combinedClickable(
-                onClick = onVideoSelected,
-                onLongClick = onLongClick
+                onClick = {
+                    LingoLog.d("GalleryItem", "Video selected: ${file.name}")
+                    onVideoSelected()
+                },
+                onLongClick = {
+                    LingoLog.d("GalleryItem", "Long click on: ${file.name}")
+                    onLongClick()
+                }
             ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -349,51 +355,3 @@ fun VideoItem(
     }
 }
 
-@Composable
-fun MetadataEditDialog(
-    metadata: VideoMetadata,
-    onDismiss: () -> Unit,
-    onSave: (VideoMetadata) -> Unit,
-    onDeleteFile: () -> Unit,
-    onRenameFile: () -> Unit
-) {
-    var title by remember { mutableStateOf(metadata.title ?: "") }
-    var season by remember { mutableStateOf(metadata.season?.toString() ?: "") }
-    var episode by remember { mutableStateOf(metadata.episode?.toString() ?: "") }
-    var description by remember { mutableStateOf(metadata.description ?: "") }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("פרטי סרטון") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                TextField(value = title, onValueChange = { title = it }, label = { Text("כותרת") }, modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    TextField(value = season, onValueChange = { season = it }, label = { Text("עונה") }, modifier = Modifier.weight(1f), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextField(value = episode, onValueChange = { episode = it }, label = { Text("פרק") }, modifier = Modifier.weight(1f), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                TextField(value = description, onValueChange = { description = it }, label = { Text("תיאור") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    TextButton(onClick = onRenameFile) { Icon(Icons.Default.Edit, null); Text("שנה שם קובץ") }
-                    TextButton(onClick = onDeleteFile, colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) { Icon(Icons.Default.Delete, null); Text("מחק קובץ") }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                onSave(metadata.copy(
-                    title = title.ifBlank { null },
-                    season = season.toIntOrNull(),
-                    episode = episode.toIntOrNull(),
-                    description = description.ifBlank { null }
-                ))
-            }) { Text("שמור") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("ביטול") } }
-    )
-}

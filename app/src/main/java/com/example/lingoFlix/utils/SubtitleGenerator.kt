@@ -1,7 +1,6 @@
 package com.example.lingoFlix.utils
 
 import android.content.Context
-import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import java.io.File
@@ -28,7 +27,7 @@ object SubtitleGenerator {
             // but Gemini 1.5 handles large context. 
             // For a "pro" feel, we should warn if it's too big.
             if (videoBytes.size > 20 * 1024 * 1024) {
-                Log.w(TAG, "Video file is large: ${videoBytes.size / 1024 / 1024}MB")
+                LingoLog.w(TAG, "Video file is large: ${videoBytes.size / 1024 / 1024}MB")
             }
 
             val generativeModel = GenerativeModel(
@@ -73,7 +72,7 @@ object SubtitleGenerator {
             
             Result.success(srtFile)
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating subtitles", e)
+            LingoLog.e(TAG, "Error generating subtitles", e)
             Result.failure(e)
         }
     }

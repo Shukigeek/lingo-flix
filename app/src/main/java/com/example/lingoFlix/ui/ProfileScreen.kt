@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.lingoFlix.utils.LingoLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +29,14 @@ fun ProfileScreen(
 ) {
     var name by remember { mutableStateOf(userName) }
     var isEditing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            LingoLog.d("ProfileScreen", "ProfileScreen displayed for user: $userName")
+        } catch (e: Exception) {
+            LingoLog.e("ProfileScreen", "Error in ProfileScreen", e)
+        }
+    }
 
     Scaffold(
         topBar = {

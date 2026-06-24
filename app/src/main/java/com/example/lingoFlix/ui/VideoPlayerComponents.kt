@@ -1,16 +1,10 @@
 package com.example.lingoFlix.ui
 
-import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -26,103 +20,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.ui.components.DuoButton
-import com.example.lingoFlix.ui.theme.*
+import com.example.lingoFlix.utils.LingoLog
 
 // Colors from LingoComponents
 val DuoGreen = Color(0xFF58CC02)
 val DuoDarkGreen = Color(0xFF46A302)
 val DuoBlue = Color(0xFF1CB0F6)
-
-@Composable
-fun ResumeDialog(
-    savedIndex: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("המשך תרגול") },
-        text = { Text("נראה שהיית באמצע התרגול. האם להמשיך ממשפט ${savedIndex + 1}?") },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text("המשך")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("התחל מהתחלה")
-            }
-        }
-    )
-}
-
-@Composable
-fun SubtitleStyleDialog(
-    fontSize: Float,
-    onFontSizeChange: (Float) -> Unit,
-    fontFamily: String,
-    onFontFamilyChange: (String) -> Unit,
-    isBold: Boolean,
-    onBoldChange: (Boolean) -> Unit,
-    colorHex: String,
-    onColorChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("עיצוב כתוביות") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("גודל טקסט: ${fontSize.toInt()}")
-                Slider(
-                    value = fontSize,
-                    onValueChange = onFontSizeChange,
-                    valueRange = 16f..60f
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("סוג גופן:")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    listOf("SansSerif", "Serif", "Monospace", "Cursive").forEach { font ->
-                        FilterChip(
-                            selected = fontFamily == font,
-                            onClick = { onFontFamilyChange(font) },
-                            label = { Text(font, fontSize = 10.sp) }
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = isBold, onCheckedChange = onBoldChange)
-                    Text("טקסט מודגש (Bold)")
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("צבע טקסט:")
-                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    listOf("#FFFFFF", "#FFFF00", "#00FF00", "#FF0000", "#00FFFF", "#FF00FF", "#FFA500", "#A9A9A9").forEach { color ->
-                        Box(
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .size(40.dp)
-                                .background(Color(android.graphics.Color.parseColor(color)), CircleShape)
-                                .border(if (colorHex == color) 3.dp else 1.dp, if (colorHex == color) MaterialTheme.colorScheme.primary else Color.LightGray, CircleShape)
-                                .clickable { onColorChange(color) }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onSave) {
-                Text("שמור")
-            }
-        }
-    )
-}
 
 @Composable
 fun GenerationOverlay(progress: String) {
@@ -303,7 +206,10 @@ fun TopControls(
             Spacer(modifier = Modifier.width(8.dp))
             
             IconButton(
-                onClick = onBack,
+                onClick = {
+                    LingoLog.d("TopControls", "Back clicked")
+                    onBack()
+                },
                 modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -359,10 +265,15 @@ fun SessionCompleteOverlay(
                 textAlign = TextAlign.Center
             )
             
-            val sessionXP = correctCount * when(difficulty) {
-                "בינוני" -> 30
-                "קשה" -> 40
-                else -> 20
+            val sessionXP = try {
+                correctCount * when(difficulty) {
+                    "בינוני" -> 30
+                    "קשה" -> 40
+                    else -> 20
+                }
+            } catch (e: Exception) {
+                LingoLog.e("SessionCompleteOverlay", "Error calculating XP", e)
+                0
             }
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -378,7 +289,10 @@ fun SessionCompleteOverlay(
             
             DuoButton(
                 text = "שחק שוב",
-                onClick = onPlayAgain,
+                onClick = {
+                    LingoLog.i("SessionCompleteOverlay", "Play again clicked")
+                    onPlayAgain()
+                },
                 color = DuoGreen,
                 darkColor = DuoDarkGreen,
                 modifier = Modifier.fillMaxWidth()
@@ -388,134 +302,14 @@ fun SessionCompleteOverlay(
             
             DuoButton(
                 text = "חזור לבית",
-                onClick = onBack,
+                onClick = {
+                    LingoLog.i("SessionCompleteOverlay", "Back home clicked")
+                    onBack()
+                },
                 color = DuoBlue,
                 darkColor = DuoBlue.copy(alpha = 0.8f),
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
-}
-
-@Composable
-fun GameOverDialog(
-    completedCount: Int,
-    onRetry: () -> Unit,
-    onBack: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = { },
-        title = { Text("המשחק נגמר! 💔") },
-        text = { Text("השתמשת בכל הלבבות שלך. השלמת $completedCount משפטים.") },
-        confirmButton = {
-            Button(onClick = onRetry) {
-                Text("נסה שוב")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onBack) {
-                Text("חזור לרשימה")
-            }
-        }
-    )
-}
-
-@Composable
-fun SubtitleSearchDialog(
-    videoUri: Uri,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onGoogleSearch: () -> Unit,
-    onKtuvitSearch: () -> Unit,
-    onImportFile: () -> Unit,
-    onGenerateAI: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("חיפוש כתוביות") },
-        text = {
-            Column {
-                TextField(
-                    value = searchQuery, 
-                    onValueChange = onSearchQueryChange, 
-                    placeholder = { Text("שם הסרט/סדרה") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onGoogleSearch,
-                    modifier = Modifier.fillMaxWidth()
-                ) { 
-                    Icon(Icons.Default.Search, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("חפש ב-Google") 
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onKtuvitSearch,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                ) { 
-                    Icon(Icons.Default.Link, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("חפש ב-Ktuvit (מומלץ)") 
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onImportFile,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                ) { 
-                    Icon(Icons.Default.FileOpen, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("ייבא קובץ SRT קיים") 
-                }
-                
-                if (videoUri.scheme == "file") {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onGenerateAI,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                    ) {
-                        Icon(Icons.Default.AutoAwesome, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("ייצר בעזרת AI (לוקח זמן)")
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("סגור") } }
-    )
-}
-
-@Composable
-fun SyncTestDialog(
-    onSeek: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("בדיקת סנכרון כתוביות") },
-        text = {
-            Column {
-                Text("האם הכתוביות תואמות לסרטון?")
-                Text("נבדוק 3 נקודות זמן שונות.", style = MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("הבנתי")
-            }
-        },
-        dismissButton = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onSeek(0.1f) }) { Text("בדוק התחלה (10%)") }
-                Button(onClick = { onSeek(0.5f) }) { Text("בדוק אמצע (50%)") }
-                Button(onClick = { onSeek(0.9f) }) { Text("בדוק סוף (90%)") }
-            }
-        }
-    )
 }

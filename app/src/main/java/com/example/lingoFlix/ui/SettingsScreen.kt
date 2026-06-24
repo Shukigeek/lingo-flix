@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.example.lingoFlix.utils.LingoLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +29,14 @@ fun SettingsScreen(
     var geminiApiKey by remember { mutableStateOf(currentGeminiApiKey) }
     var tmdbApiKey by remember { mutableStateOf(currentTmdbApiKey) }
     var anthropicApiKey by remember { mutableStateOf(currentAnthropicApiKey) }
+
+    LaunchedEffect(Unit) {
+        try {
+            LingoLog.d("SettingsScreen", "Settings screen loaded")
+        } catch (e: Exception) {
+            LingoLog.e("SettingsScreen", "Error in SettingsScreen", e)
+        }
+    }
 
     Scaffold(
         topBar = {

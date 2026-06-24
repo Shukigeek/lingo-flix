@@ -20,9 +20,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.lingoFlix.model.DynamicSkill
+import com.example.lingoFlix.utils.LingoLog
 
 @Composable
 fun DayCircle(day: String, isDone: Boolean) {
+    try {
+        LingoLog.d("DashboardMiscComponents", "Rendering DayCircle for $day")
+    } catch (e: Exception) {
+        // Silently fail for logging
+    }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
@@ -57,7 +64,8 @@ fun RecommendationItem(
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
                 .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            onError = { LingoLog.e("DashboardMiscComponents", "Failed to load image: $imageUrl") }
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(

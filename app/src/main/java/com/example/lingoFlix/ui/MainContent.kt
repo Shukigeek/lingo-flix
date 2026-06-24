@@ -20,12 +20,16 @@ fun MainContent(
     mainViewModel: MainViewModel = viewModel()
 ) {
     val navigationStack = mainViewModel.navigationStack
-    val currentScreen = navigationStack.last()
+    val currentScreen = navigationStack.lastOrNull() ?: "dashboard"
 
     LingoLog.d("MainContent", "Rendering screen: $currentScreen")
 
     BackHandler(enabled = navigationStack.size > 1) {
-        mainViewModel.navigateBack()
+        try {
+            mainViewModel.navigateBack()
+        } catch (e: Exception) {
+            LingoLog.e("MainContent", "Error navigating back", e)
+        }
     }
 
     Scaffold(

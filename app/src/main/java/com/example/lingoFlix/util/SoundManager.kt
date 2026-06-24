@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 import com.example.lingoFlix.R
+import com.example.lingoFlix.utils.LingoLog
 
 object SoundManager {
     private var soundPool: SoundPool? = null
@@ -14,23 +15,28 @@ object SoundManager {
     fun init(context: Context) {
         if (isInitialized) return
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
+        try {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
 
-        soundPool = SoundPool.Builder()
-            .setMaxStreams(5)
-            .setAudioAttributes(audioAttributes)
-            .build()
+            soundPool = SoundPool.Builder()
+                .setMaxStreams(5)
+                .setAudioAttributes(audioAttributes)
+                .build()
 
-        // These IDs will be 0 if the resources are missing, 
-        // and soundPool?.play will just do nothing.
-        // We expect correct_sound and wrong_sound in res/raw
-        correctSoundId = soundPool?.load(context, R.raw.correct_sound, 1) ?: 0
-        wrongSoundId = soundPool?.load(context, R.raw.wrong_sound, 1) ?: 0
-        
-        isInitialized = true
+            // These IDs will be 0 if the resources are missing, 
+            // and soundPool?.play will just do nothing.
+            // We expect correct_sound and wrong_sound in res/raw
+            correctSoundId = soundPool?.load(context, R.raw.correct_sound, 1) ?: 0
+            wrongSoundId = soundPool?.load(context, R.raw.wrong_sound, 1) ?: 0
+            
+            isInitialized = true
+            LingoLog.d("SoundManager", "Initialized successfully")
+        } catch (e: Exception) {
+            LingoLog.e("SoundManager", "Error initializing SoundManager", e)
+        }
     }
 
     fun playCorrect() {

@@ -56,6 +56,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+import com.example.lingoFlix.utils.LingoLog
+
 @Composable
 fun VideoListScreen(
     onVideoSelected: (Uri) -> Unit, 
@@ -75,6 +77,8 @@ fun VideoListScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
+    LingoLog.d("VideoListScreen", "Initializing VideoListScreen")
     
     val rootVideoDir = remember { File(context.filesDir, "videos") }
     if (!rootVideoDir.exists()) rootVideoDir.mkdirs()
@@ -303,53 +307,31 @@ fun VideoListScreen(
     // Reuse existing dialogs (Renaming, Deleting, Moving, Subtitles) - Simplified/Integrated
     // [Omitting redundant code for brevity but keeping logic]
     if (showNewFolderDialog) {
-        AlertDialog(
-            onDismissRequest = { showNewFolderDialog = false },
-            title = { Text("תיקייה חדשה") },
-            text = { TextField(value = newFolderName, onValueChange = { newFolderName = it }, label = { Text("שם התיקייה") }) },
-            confirmButton = { Button(onClick = {
-                val newDir = File(currentDir, newFolderName)
+        NewFolderDialog(
+            onConfirm = { name ->
+                val newDir = File(currentDir, name)
                 if (!newDir.exists()) newDir.mkdirs()
                 showNewFolderDialog = false
-                newFolderName = ""
                 currentDir = File(currentDir.absolutePath)
-            }) { Text("צור") } },
-            dismissButton = { TextButton(onClick = { showNewFolderDialog = false }) { Text("ביטול") } }
+            },
+            onDismiss = { showNewFolderDialog = false }
         )
     }
 
     if (videoForQuiz != null) {
-        AlertDialog(
-            onDismissRequest = { videoForQuiz = null },
-            title = { Text("בחר רמת קושי לתרגול") },
-            text = {
-                Column {
-                    listOf("קל", "בינוני", "קשה").forEach { level ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().clickable { selectedDifficulty = level }.padding(vertical = 8.dp)
-                        ) {
-                            RadioButton(selected = selectedDifficulty == level, onClick = { selectedDifficulty = level })
-                            Text(text = level, modifier = Modifier.padding(start = 8.dp))
-                        }
-                    }
-                }
+        DifficultySelectionDialog(
+            onDifficultySelected = { level ->
+                val file = videoForQuiz!!
+                videoForQuiz = null
+                onToggleDifficulty(level)
+                onPracticeRequested(file, true)
             },
-            confirmButton = {
-                Button(onClick = {
-                    val file = videoForQuiz!!
-                    videoForQuiz = null
-                    onToggleDifficulty(selectedDifficulty)
-                    onPracticeRequested(file, true)
-                }) { Text("התחל תרגול") }
+            onRegularView = {
+                val file = videoForQuiz!!
+                videoForQuiz = null
+                onPracticeRequested(file, false)
             },
-            dismissButton = {
-                TextButton(onClick = { 
-                    val file = videoForQuiz!!
-                    videoForQuiz = null
-                    onPracticeRequested(file, false)
-                }) { Text("צפייה רגילה") }
-            }
+            onDismiss = { videoForQuiz = null }
         )
     }
 

@@ -10,6 +10,7 @@ import com.example.lingoFlix.util.GameLogic
 import java.io.File
 import com.example.lingoFlix.utils.SrtParser
 import android.net.Uri
+import com.example.lingoFlix.utils.LingoLog
 
 class ExerciseViewModel : ViewModel() {
 
@@ -40,15 +41,21 @@ class ExerciseViewModel : ViewModel() {
     private var allSegments = listOf<SubtitleSegment>()
 
     fun loadProject(srtFile: File) {
-        allSegments = SrtParser.parseSrtFile(srtFile, Uri.EMPTY).mapIndexed { index, clip ->
-            SubtitleSegment(index, clip.startTimeMs, clip.endTimeMs, clip.text)
+        try {
+            LingoLog.d("ExerciseViewModel", "Loading project from: ${srtFile.absolutePath}")
+            allSegments = SrtParser.parseSrtFile(srtFile, Uri.EMPTY).mapIndexed { index, clip ->
+                SubtitleSegment(index, clip.startTimeMs, clip.endTimeMs, clip.text)
+            }
+            totalQuestions = allSegments.size
+            _questionIndex.value = 0
+            _hearts.value = 3
+            _streak.value = 0
+            _isGameOver.value = false
+            nextQuestion()
+        } catch (e: Exception) {
+            LingoLog.e("ExerciseViewModel", "Failed to load project", e)
+            _isGameOver.value = true
         }
-        totalQuestions = allSegments.size
-        _questionIndex.value = 0
-        _hearts.value = 3
-        _streak.value = 0
-        _isGameOver.value = false
-        nextQuestion()
     }
 
     fun nextQuestion(difficulty: GameLogic.Difficulty = GameLogic.Difficulty.EASY) {

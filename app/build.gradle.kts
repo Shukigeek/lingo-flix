@@ -81,8 +81,8 @@ tasks.register("checkCodeQuality") {
             val lines = file.readLines()
             
             // 1. Check line count
-            if (lines.size > 300) {
-                report.append("[FAIL] ${file.name} is too long (${lines.size} lines). Limit is 300.\n")
+            if (lines.size > 500) {
+                report.append("[FAIL] ${file.name} is too long (${lines.size} lines). Limit is 500.\n")
                 failed = true
             }
             

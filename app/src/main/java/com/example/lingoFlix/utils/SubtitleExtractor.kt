@@ -3,7 +3,7 @@ package com.example.lingoFlix.utils
 import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.util.Log
+import com.example.lingoFlix.utils.LingoLog
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -67,7 +67,7 @@ object SubtitleExtractor {
             srtFile.writeText(srtContent.toString())
             Result.success(srtFile)
         } catch (e: Exception) {
-            Log.e(TAG, "Error extracting subtitles", e)
+            LingoLog.e(TAG, "Error extracting subtitles", e)
             Result.failure(e)
         } finally {
             extractor.release()

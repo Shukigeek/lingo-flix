@@ -33,7 +33,7 @@ fun NavGraph(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val currentScreen = navigationStack.last()
+    val currentScreen = navigationStack.lastOrNull() ?: "dashboard"
 
     // Shared State (Usually would be in a ViewModel, but keeping local for now to maintain consistency)
     var currentUser by remember { mutableStateOf<UserProfile?>(UserProfile("main_user", "לומד", 0)) }
@@ -56,13 +56,18 @@ fun NavGraph(
         )
         "discovery" -> DiscoveryScreen(userId = currentUser?.id ?: "guest")
         "settings" -> SettingsScreen(
-            currentGeminiApiKey = SecurityUtils.getUserApiKey(context, currentUser?.id ?: "guest") ?: "",
-            currentTmdbApiKey = SecurityUtils.getTmdbApiKey(context, currentUser?.id ?: "guest") ?: "",
-            currentAnthropicApiKey = SecurityUtils.getAnthropicApiKey(context, currentUser?.id ?: "guest") ?: "",
+            currentGeminiApiKey = try { SecurityUtils.getUserApiKey(context, currentUser?.id ?: "guest") ?: "" } catch (e: Exception) { "" },
+            currentTmdbApiKey = try { SecurityUtils.getTmdbApiKey(context, currentUser?.id ?: "guest") ?: "" } catch (e: Exception) { "" },
+            currentAnthropicApiKey = try { SecurityUtils.getAnthropicApiKey(context, currentUser?.id ?: "guest") ?: "" } catch (e: Exception) { "" },
             onSaveKeys = { gemini, tmdb, anthropic ->
-                SecurityUtils.saveUserApiKey(context, currentUser?.id ?: "guest", gemini)
-                SecurityUtils.saveTmdbApiKey(context, currentUser?.id ?: "guest", tmdb)
-                SecurityUtils.saveAnthropicApiKey(context, currentUser?.id ?: "guest", anthropic)
+                try {
+                    SecurityUtils.saveUserApiKey(context, currentUser?.id ?: "guest", gemini)
+                    SecurityUtils.saveTmdbApiKey(context, currentUser?.id ?: "guest", tmdb)
+                    SecurityUtils.saveAnthropicApiKey(context, currentUser?.id ?: "guest", anthropic)
+                    LingoLog.i("NavGraph", "API Keys saved successfully")
+                } catch (e: Exception) {
+                    LingoLog.e("NavGraph", "Error saving API keys", e)
+                }
             },
             onBack = onNavigateBack
         )
