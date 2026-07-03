@@ -5,7 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -67,7 +67,8 @@ fun VideoPlayerController(
     lifecycleOwner: LifecycleOwner,
     activity: ComponentActivity?,
     isFullScreen: Boolean,
-    context: Context
+    context: Context,
+    isQuizMode: Boolean
 ) {
     // Handle Speed Change
     LaunchedEffect(playbackSpeed) {
@@ -144,13 +145,14 @@ fun VideoPlayerController(
 
     // Check if clip ended
     if (clips != null) {
-        LaunchedEffect(currentClipIndex, clips) {
+        LaunchedEffect(currentClipIndex, clips, isQuizMode) {
             while (true) {
-                delay(30)
+                delay(10)
                 if (currentClipIndex < clips.size) {
                     val clip = clips[currentClipIndex]
-                    val endBuffer = 300L
-                    if (exoPlayer.currentPosition >= clip.endTimeMs + endBuffer) {
+                    // If we passed the end of the clip, pause the video
+                    if (exoPlayer.currentPosition >= clip.endTimeMs) {
+                        LingoLog.d("VideoPlayerController", "Clip ended at ${exoPlayer.currentPosition}, pausing")
                         exoPlayer.pause()
                         break
                     }
@@ -328,6 +330,8 @@ fun QuizInputSection(
     userInput: String,
     onUserInputChange: (String) -> Unit,
     onCheck: () -> Unit,
+    onSkip: () -> Unit,
+    onReplay: () -> Unit,
     isChecked: Boolean,
     allCorrect: Boolean,
     hiddenWords: String
@@ -357,6 +361,21 @@ fun QuizInputSection(
                     }
                 }
             )
+            IconButton(
+                onClick = onReplay,
+                modifier = Modifier.background(Color.DarkGray, CircleShape)
+            ) {
+                Icon(Icons.Default.Replay, contentDescription = "Replay", tint = Color.White)
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            IconButton(
+                onClick = onSkip,
+                modifier = Modifier.background(Color.DarkGray, CircleShape)
+            ) {
+                Icon(Icons.Default.SkipNext, contentDescription = "Skip", tint = Color.White)
+            }
         }
     } else {
         Text(

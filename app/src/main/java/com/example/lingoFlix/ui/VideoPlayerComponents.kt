@@ -161,6 +161,8 @@ fun TopControls(
     onFullScreenToggle: () -> Unit,
     playbackSpeed: Float,
     onPlaybackSpeedToggle: () -> Unit,
+    isPlaying: Boolean,
+    onPlayPauseToggle: () -> Unit,
     onStyleClick: () -> Unit,
     onSearchClick: () -> Unit,
     onBack: () -> Unit
@@ -176,6 +178,19 @@ fun TopControls(
                 modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
             ) {
                 Icon(Icons.Default.Palette, contentDescription = "Subtitle Style", tint = Color.White)
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = onPlayPauseToggle,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = Color.White
+                )
             }
             
             Spacer(modifier = Modifier.width(8.dp))

@@ -12,6 +12,10 @@ import com.example.lingoFlix.data.AppDatabase
 import com.example.lingoFlix.ui.navigation.BottomNavigationBar
 import com.example.lingoFlix.ui.viewmodel.MainViewModel
 import com.example.lingoFlix.utils.LingoLog
+import com.example.lingoFlix.utils.SecurityUtils
+import com.example.lingoFlix.model.SubtitleClip
+import com.example.lingoFlix.model.VideoMetadata
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainContent(
@@ -47,6 +51,8 @@ fun MainContent(
                 "dashboard" -> DashboardRouter(mainViewModel)
                 "discovery" -> DiscoveryScreen(mainViewModel.currentUser.id)
                 "video_list" -> VideoListRouter(mainViewModel, database)
+                "video_player" -> VideoPlayerRouter(mainViewModel, database)
+                "settings" -> SettingsRouter(mainViewModel)
                 "admin_dashboard" -> AdminDashboardScreen(
                     onBack = { mainViewModel.navigateBack() },
                     configDao = database.configDao(),
@@ -69,15 +75,114 @@ fun DashboardRouter(vm: MainViewModel) {
 
 @Composable
 fun VideoListRouter(vm: MainViewModel, db: AppDatabase) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    val allMetadata by db.videoMetadataDao().getAllMetadata().collectAsState(initial = emptyList())
+    val allFavorites by db.favoriteClipDao().getAllFavorites().collectAsState(initial = emptyList())
+    
+    val dirLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            // Handle picked directory logic here if needed
+            LingoLog.i("MainContent", "Directory selected: $it")
+        }
+    }
+
     // Isolated router for Video List
     VideoListScreen(
-        onVideoSelected = { /* select logic */ },
-        onPracticeRequested = { _, _ -> /* practice logic */ },
+        onVideoSelected = { uri ->
+            vm.selectedVideoUri = uri
+            vm.isQuizModeActive = false
+            vm.practiceClips = null
+            vm.navigateTo("video_player")
+        },
+        onPracticeRequested = { file, isQuiz ->
+            val srt = com.example.lingoFlix.utils.FileUtils.findBestSrtForVideo(file)
+            if (srt != null) {
+                vm.selectedVideoUri = Uri.fromFile(file)
+                vm.isQuizModeActive = isQuiz
+                vm.practiceClips = com.example.lingoFlix.utils.SrtParser.parseSrtFile(srt, Uri.fromFile(file))
+                vm.navigateTo("video_player")
+            } else {
+                // If no subtitles, just play regularly or show toast
+                vm.selectedVideoUri = Uri.fromFile(file)
+                vm.isQuizModeActive = false
+                vm.practiceClips = null
+                vm.navigateTo("video_player")
+            }
+        },
         onBack = { vm.navigateBack() },
-        linkedVideos = emptySet(), // Should come from VM
-        onToggleLink = { /* link logic */ },
+        linkedVideos = allMetadata.filter { it.isLinked }.map { 
+            try { java.io.File(it.filePath).relativeTo(java.io.File(context.filesDir, "videos")).path } catch(e: Exception) { it.filePath }
+        }.toSet(),
+        onToggleLink = { relativePath ->
+            scope.launch {
+                val fullPath = java.io.File(java.io.File(context.filesDir, "videos"), relativePath).absolutePath
+                val meta = db.videoMetadataDao().getMetadataForVideo(fullPath) ?: VideoMetadata(fullPath)
+                db.videoMetadataDao().insertMetadata(meta.copy(isLinked = !meta.isLinked))
+            }
+        },
         onToggleDifficulty = { vm.quizDifficulty = it },
         onSettingsRequested = { vm.navigateTo("settings") },
-        metadataDao = db.videoMetadataDao()
+        metadataDao = db.videoMetadataDao(),
+        onPickDirectory = { dirLauncher.launch(null) }
+    )
+}
+
+@Composable
+fun VideoPlayerRouter(vm: MainViewModel, db: AppDatabase) {
+    val videoUri = vm.selectedVideoUri ?: return
+    val scope = rememberCoroutineScope()
+    val allFavorites by db.favoriteClipDao().getAllFavorites().collectAsState(initial = emptyList())
+
+    VideoPlayerScreen(
+        videoUri = videoUri,
+        clips = vm.practiceClips,
+        onBack = { vm.navigateBack() },
+        isQuizMode = vm.isQuizModeActive,
+        difficulty = vm.quizDifficulty,
+        quizType = vm.quizType,
+        userId = vm.currentUser.id,
+        favoriteClips = allFavorites.map { it.id }.toSet(),
+        onToggleFavorite = { clipId ->
+            scope.launch {
+                if (allFavorites.any { it.id == clipId }) {
+                    db.favoriteClipDao().deleteById(clipId)
+                } else {
+                    val clip = vm.practiceClips?.find { "${it.startTimeMs}_${it.text.hashCode()}" == clipId }
+                    if (clip != null) {
+                        db.favoriteClipDao().insertFavorite(com.example.lingoFlix.model.FavoriteClip(
+                            id = clipId,
+                            videoPath = videoUri.path ?: "",
+                            text = clip.text,
+                            startTimeMs = clip.startTimeMs,
+                            endTimeMs = clip.endTimeMs
+                        ))
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun SettingsRouter(vm: MainViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    SettingsScreen(
+        currentGeminiApiKey = SecurityUtils.getUserApiKey(context, vm.currentUser.id) ?: "",
+        currentTmdbApiKey = SecurityUtils.getTmdbApiKey(context, vm.currentUser.id) ?: "",
+        currentAnthropicApiKey = SecurityUtils.getAnthropicApiKey(context, vm.currentUser.id) ?: "",
+        onSaveKeys = { gemini, tmdb, anthropic ->
+            SecurityUtils.saveUserApiKey(context, vm.currentUser.id, gemini)
+            SecurityUtils.saveTmdbApiKey(context, vm.currentUser.id, tmdb)
+            SecurityUtils.saveAnthropicApiKey(context, vm.currentUser.id, anthropic)
+        },
+        onBack = { vm.navigateBack() }
     )
 }

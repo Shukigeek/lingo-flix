@@ -48,9 +48,10 @@ object VideoPlayerLogic {
             if (validIndices.isNotEmpty()) {
                 val countToHide = if (quizType == "multiple_choice") 1 else {
                     when (difficulty) {
+                        "קל" -> 1
                         "בינוני" -> (validIndices.size * 0.4).toInt().coerceAtLeast(1)
                         "קשה" -> (validIndices.size * 0.7).toInt().coerceAtLeast(1)
-                        else -> 1 // קל
+                        else -> 1 // Default to easy
                     }
                 }
                 hiddenIndices = validIndices.shuffled().take(countToHide).toSet()

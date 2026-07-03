@@ -1,6 +1,9 @@
 package com.example.lingoFlix.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,7 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.model.VideoMetadata
 import com.example.lingoFlix.utils.LingoLog
 
@@ -86,36 +92,104 @@ fun DifficultySelectionDialog(
     onDismiss: () -> Unit
 ) {
     var selectedDifficulty by remember { mutableStateOf("קל") }
+    
+    val difficultyLevels = listOf(
+        DifficultyLevel("קל", "מתחילים", "מילה אחת חסרה בכל משפט", Color(0xFF58CC02), Icons.Default.SentimentSatisfied),
+        DifficultyLevel("בינוני", "בינוני", "כ-40% מהמילים יוסתרו", Color(0xFFFFC107), Icons.Default.SentimentNeutral),
+        DifficultyLevel("קשה", "מתקדם", "רוב המילים יוסתרו", Color(0xFFE91E63), Icons.Default.SentimentVeryDissatisfied)
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("בחר רמת קושי לתרגול") },
+        title = { 
+            Text(
+                "רמת קושי לתרגול", 
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            ) 
+        },
         text = {
-            Column {
-                listOf("קל", "בינוני", "קשה").forEach { level ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clickable { selectedDifficulty = level }.padding(vertical = 8.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                difficultyLevels.forEach { level ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedDifficulty = level.id },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedDifficulty == level.id) 
+                                level.color.copy(alpha = 0.15f) 
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = if (selectedDifficulty == level.id) 
+                            androidx.compose.foundation.BorderStroke(2.dp, level.color) 
+                        else null
                     ) {
-                        RadioButton(selected = selectedDifficulty == level, onClick = { selectedDifficulty = level })
-                        Text(text = level, modifier = Modifier.padding(start = 8.dp))
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .background(level.color, CircleShape)
+                                    .size(40.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(level.icon, null, tint = Color.White)
+                            }
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(level.title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Text(level.description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                            
+                            RadioButton(
+                                selected = selectedDifficulty == level.id,
+                                onClick = { selectedDifficulty = level.id },
+                                colors = RadioButtonDefaults.colors(selectedColor = level.color)
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = {
-                LingoLog.i("DifficultySelectionDialog", "Difficulty selected: $selectedDifficulty")
-                onDifficultySelected(selectedDifficulty)
-            }) { Text("התחל תרגול") }
+            Button(
+                onClick = {
+                    LingoLog.i("DifficultySelectionDialog", "Difficulty selected: $selectedDifficulty")
+                    onDifficultySelected(selectedDifficulty)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = difficultyLevels.find { it.id == selectedDifficulty }?.color ?: MaterialTheme.colorScheme.primary
+                )
+            ) { 
+                Text("התחל תרגול", fontWeight = FontWeight.Bold) 
+            }
         },
         dismissButton = {
-            TextButton(onClick = {
-                LingoLog.i("DifficultySelectionDialog", "Regular view selected")
-                onRegularView()
-            }) { Text("צפייה רגילה") }
+            TextButton(
+                onClick = onRegularView,
+                modifier = Modifier.fillMaxWidth()
+            ) { 
+                Text("צפייה רגילה (ללא תרגול)", color = Color.Gray) 
+            }
         }
     )
 }
+
+data class DifficultyLevel(
+    val id: String,
+    val title: String,
+    val description: String,
+    val color: Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 @Composable
 fun NewFolderDialog(

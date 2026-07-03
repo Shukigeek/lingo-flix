@@ -187,37 +187,6 @@ fun DashboardScreen(
                     }
 
                     item {
-                        // Skill Builder Section (The Meta-Skill)
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    try {
-                                        LingoLog.i("DashboardScreen", "Skill builder clicked")
-                                        onBuildSkill()
-                                    } catch (e: Exception) {
-                                        LingoLog.e("DashboardScreen", "Error in onBuildSkill", e)
-                                    }
-                                },
-                            color = Color(0xFF1CB0F6).copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(24.dp),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF1CB0F6).copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(20.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.AutoFixHigh, null, tint = Color(0xFF1CB0F6), modifier = Modifier.size(32.dp))
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text("בונה הסקילים 🤖", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color(0xFF1CB0F6))
-                                    Text("צור יכולת חדשה לאפליקציה בעזרת AI", color = Color.Gray, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-
-                    item {
                         // Stats Section
                         Surface(
                             color = Color.White.copy(alpha = 0.85f),

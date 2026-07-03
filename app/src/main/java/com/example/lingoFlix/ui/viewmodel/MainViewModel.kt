@@ -22,6 +22,17 @@ class MainViewModel : ViewModel() {
     var isRandomModeActive by mutableStateOf(false)
     var quizDifficulty by mutableStateOf("קל")
     var quizType by mutableStateOf("typing")
+    
+    var favoriteClips by mutableStateOf(setOf<String>())
+    var linkedVideos by mutableStateOf(setOf<String>())
+
+    fun toggleFavorite(clipId: String) {
+        favoriteClips = if (favoriteClips.contains(clipId)) {
+            favoriteClips - clipId
+        } else {
+            favoriteClips + clipId
+        }
+    }
 
     fun navigateTo(screen: String) {
         if (navigationStack.last() != screen) {

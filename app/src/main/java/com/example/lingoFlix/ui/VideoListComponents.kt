@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.model.VideoMetadata
 import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.LingoLog
@@ -139,12 +140,26 @@ fun GalleryItem(
                     // Subtitle status indicator
                     val srtFile = remember(file) { FileUtils.findBestSrtForVideo(file) }
                     if (srtFile?.exists() == true) {
+                        val language = remember(srtFile) { com.example.lingoFlix.utils.SrtParser.detectSubtitleLanguage(srtFile) }
+                        val flag = when(language) {
+                            "אנגלית" -> "🇺🇸"
+                            "עברית" -> "🇮🇱"
+                            "ספרדית" -> "🇪🇸"
+                            "צרפתית" -> "🇫🇷"
+                            "גרמנית" -> "🇩🇪"
+                            "איטלקית" -> "🇮🇹"
+                            "רוסית" -> "🇷🇺"
+                            "ערבית" -> "🇸🇦"
+                            else -> "🏳️"
+                        }
                         Surface(
                             modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
                             color = Color(0xFF58CC02),
                             shape = RoundedCornerShape(4.dp)
                         ) {
-                            Text("CC", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 4.dp), fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+                                Text(flag, fontSize = 14.sp)
+                            }
                         }
                     }
 
@@ -183,7 +198,12 @@ fun GalleryItem(
                             color = Color.Gray
                         )
                     } else if (!isDirectory) {
-                        val duration = remember(file) { FileUtils.getVideoDuration(context, file) }
+                        var duration by remember(file) { mutableStateOf<String?>(null) }
+                        LaunchedEffect(file) {
+                            withContext(Dispatchers.IO) {
+                                duration = FileUtils.getVideoDuration(context, file)
+                            }
+                        }
                         Text(duration ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     }
                 }
@@ -289,7 +309,14 @@ fun VideoItem(
     onMove: () -> Unit
 ) {
     val isDirectory = file.isDirectory
-    val duration = remember(file) { if (isDirectory) null else FileUtils.getVideoDuration(context, file) }
+    var duration by remember(file) { mutableStateOf<String?>(null) }
+    LaunchedEffect(file) {
+        if (!isDirectory) {
+            withContext(Dispatchers.IO) {
+                duration = FileUtils.getVideoDuration(context, file)
+            }
+        }
+    }
     val srtFile = remember(file) { if (isDirectory) null else FileUtils.findBestSrtForVideo(file) }
     val hasSubtitles = srtFile?.exists() ?: false
     var showMenu by remember { mutableStateOf(false) }
@@ -326,9 +353,23 @@ fun VideoItem(
                         if (metadata?.season != null) Text("S${metadata.season}E${metadata.episode ?: 0} • ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (isDirectory) "תיקייה" else (duration ?: ""), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         if (hasSubtitles) {
+                            val language = remember(srtFile) { com.example.lingoFlix.utils.SrtParser.detectSubtitleLanguage(srtFile!!) }
+                            val flag = when(language) {
+                                "אנגלית" -> "🇺🇸"
+                                "עברית" -> "🇮🇱"
+                                "ספרדית" -> "🇪🇸"
+                                "צרפתית" -> "🇫🇷"
+                                "גרמנית" -> "🇩🇪"
+                                "איטלקית" -> "🇮🇹"
+                                "רוסית" -> "🇷🇺"
+                                "ערבית" -> "🇸🇦"
+                                else -> "🏳️"
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(color = Color(0xFF58CC02).copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
-                                Text("CC", color = Color(0xFF58CC02), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 4.dp), fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+                                    Text(flag, fontSize = 12.sp)
+                                }
                             }
                         }
                     }

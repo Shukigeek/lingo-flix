@@ -17,6 +17,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.util.SoundManager
 import com.example.lingoFlix.utils.*
+import com.example.lingoFlix.utils.LingoLog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.dionsegijn.konfetti.core.Party
@@ -93,6 +94,7 @@ fun VideoPlayerScreen(
     var xRayLine by remember { mutableStateOf("") }
     var xRayMissingWords by remember { mutableStateOf("") }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
+    var isPlaying by remember { mutableStateOf(true) }
     var showSyncTest by remember { mutableStateOf(false) }
     var isGeneratingSubtitles by remember { mutableStateOf(false) }
     var generationProgress by remember { mutableStateOf("") }
@@ -101,6 +103,11 @@ fun VideoPlayerScreen(
     var subtitleSearchQuery by remember { mutableStateOf("") }
     
     val sharedPrefs = remember { context.getSharedPreferences("lingo_prefs", Context.MODE_PRIVATE) }
+    
+    LaunchedEffect(videoUri) {
+        LingoLog.d("VideoPlayerScreen", "Initializing for video: $videoUri")
+    }
+
     var subtitleFontSize by remember { mutableFloatStateOf(sharedPrefs.getFloat("sub_font_size", 34f)) }
     var subtitleColorHex by remember { mutableStateOf(sharedPrefs.getString("sub_color", "#FFFFFF") ?: "#FFFFFF") }
     var subtitleIsBold by remember { mutableStateOf(sharedPrefs.getBoolean("sub_is_bold", true)) }
@@ -125,7 +132,7 @@ fun VideoPlayerScreen(
     
     val exoPlayer = remember(context) { ExoPlayer.Builder(context).build().apply { setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT); playWhenReady = true } }
     
-    VideoPlayerController(exoPlayer, playbackSpeed, videoUri, clips, currentClipIndex, detectedLanguage, preferredAudioLang, lifecycleOwner, activity, isFullScreen, context)
+    VideoPlayerController(exoPlayer, playbackSpeed, videoUri, clips, currentClipIndex, detectedLanguage, preferredAudioLang, lifecycleOwner, activity, isFullScreen, context, isQuizMode)
 
     val allCorrect = isChecked && hiddenIndices.all { idx -> userInput.split(Regex("\\s+")).any { it.trim().equals(wordsList[idx].trim(), ignoreCase = true) } }
 
@@ -136,7 +143,7 @@ fun VideoPlayerScreen(
     )
 
     VideoPlayerScreenUI(
-        exoPlayer, confettiState, isGeneratingSubtitles, generationProgress, isQuizMode, isSessionComplete, heartsLeft, comboCount, isFullScreen, { isFullScreen = !isFullScreen }, playbackSpeed, { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f }, { showStyleDialog = true }, { showSearchDialog = true }, onBack,
+        exoPlayer, confettiState, isGeneratingSubtitles, generationProgress, isQuizMode, isSessionComplete, heartsLeft, comboCount, isFullScreen, { isFullScreen = !isFullScreen }, playbackSpeed, { playbackSpeed = if (playbackSpeed == 1.0f) 0.7f else 1.0f }, isPlaying, { isPlaying = !isPlaying; if (isPlaying) exoPlayer.play() else exoPlayer.pause() }, { showStyleDialog = true }, { showSearchDialog = true }, onBack,
         clips, subtitlesVisible, currentClipIndex, favoriteClips, onToggleFavorite, hiddenIndices, wordsList, userInput, { userInput = it }, isChecked, { isChecked = true }, detectedLanguage, subtitleColorHex, subtitleFontSize, subtitleIsBold, currentFontFamily, shakeOffset.value, flashColor, correctCount, totalAttempted, difficulty,
         { isSessionComplete = false; correctCount = 0; totalAttempted = 0; currentClipIndex = 0; userInput = ""; isChecked = false }, { exoPlayer.seekTo(clips!![currentClipIndex].startTimeMs); exoPlayer.play() },
         { if (clips != null && clips.isNotEmpty()) { totalAttempted++; if (currentClipIndex < clips.size - 1) currentClipIndex++ else isSessionComplete = true; userInput = ""; isChecked = false } },

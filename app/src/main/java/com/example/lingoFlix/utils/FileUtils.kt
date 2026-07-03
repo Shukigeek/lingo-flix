@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit
 
 object FileUtils {
     fun getFileName(context: Context, uri: Uri): String? {
+        LingoLog.d("FileUtils", "getFileName for: $uri")
         if (uri.scheme == "file") {
             return uri.lastPathSegment
         }
@@ -28,10 +29,8 @@ object FileUtils {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1) {
-                        val displayName = it.getString(nameIndex)
-                        if (!displayName.isNullOrBlank()) {
-                            name = displayName
-                        }
+                        name = it.getString(nameIndex)
+                        LingoLog.d("FileUtils", "Found DISPLAY_NAME: $name")
                     }
                 }
             }
@@ -39,31 +38,16 @@ object FileUtils {
             LingoLog.e("FileUtils", "Error getting file name from cursor", e)
         }
 
-        // If name is still null or just a number (common for some providers), try to get it from URI path
-        if (name == null || name!!.matches(Regex("\\d+"))) {
-            val path = uri.path
-            if (path != null) {
-                val lastSegment = path.substringAfterLast("/")
-                if (lastSegment.isNotBlank() && lastSegment.contains(".")) {
-                    name = lastSegment
-                }
-            }
+        if (name == null) {
+            name = uri.lastPathSegment
+            LingoLog.d("FileUtils", "Fallback to lastPathSegment: $name")
         }
         
-        // Final fallback: if it's still null or just a number, use the last path segment if it looks like a name
-        val finalName = name
-        if (finalName == null || finalName.matches(Regex("\\d+"))) {
-            uri.lastPathSegment?.let { 
-                if (it.isNotBlank() && !it.matches(Regex("\\d+"))) {
-                    name = it
-                }
-            }
-        }
-
         return name
     }
 
     fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null): File? {
+        LingoLog.d("FileUtils", "saveVideoToInternalStorage: $fileName to $targetDir")
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
             val videoDir = targetDir ?: File(context.filesDir, "videos")
@@ -81,9 +65,11 @@ object FileUtils {
 
             // Create initial metadata for the database
             val metadata = createInitialMetadata(targetFile)
+            LingoLog.d("FileUtils", "Metadata created: title='${metadata.title}', filePath='${metadata.filePath}'")
             val database = com.example.lingoFlix.data.AppDatabase.getDatabase(context)
             CoroutineScope(Dispatchers.IO).launch {
                 database.videoMetadataDao().insertMetadata(metadata)
+                LingoLog.d("FileUtils", "Metadata inserted into DB for: ${metadata.filePath}")
             }
 
             targetFile
@@ -94,14 +80,14 @@ object FileUtils {
     }
 
     private fun createInitialMetadata(file: File): com.example.lingoFlix.model.VideoMetadata {
-        val name = file.nameWithoutExtension
+        val name = file.name
         // Try to parse Season/Episode (e.g., S01E05)
         val regex = Regex("[sS](\\d{1,2})[eE](\\d{1,2})")
         val match = regex.find(name)
         
         return com.example.lingoFlix.model.VideoMetadata(
             filePath = file.absolutePath,
-            title = if (match != null) name.substringBefore(match.value).trim() else name,
+            title = name,
             season = match?.groupValues?.get(1)?.toIntOrNull(),
             episode = match?.groupValues?.get(2)?.toIntOrNull()
         )

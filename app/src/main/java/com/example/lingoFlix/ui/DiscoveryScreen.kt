@@ -83,13 +83,44 @@ fun DiscoveryScreen(userId: String) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (query.isEmpty() && developerPicks.isNotEmpty()) {
-            Text("המלצות המפתח (מומלץ!)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        if (query.isEmpty()) {
+            // Telegram Bots Section
+            Text("בוטים בטלגרם (למציאת תוכן)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(developerPicks) { item -> RecommendationCard(item) { selectedItem = item } }
+                item {
+                    TelegramBotCard(
+                        name = "Friends Robot",
+                        handle = "@FriendsRobot",
+                        icon = Icons.Default.SmartToy,
+                        color = Color(0xFF24A1DE)
+                    ) {
+                        launchTelegramBot(context, "FriendsRobot")
+                    }
+                }
+                item {
+                    TelegramBotCard(
+                        name = "חיפוש כללי",
+                        handle = "Search",
+                        icon = Icons.Default.Search,
+                        color = Color(0xFFE91E63)
+                    ) {
+                        launchTelegramSearch(context, "")
+                    }
+                }
             }
+            
             Spacer(modifier = Modifier.height(24.dp))
+
+            if (developerPicks.isNotEmpty()) {
+                Text("המלצות המפתח (מומלץ!)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(developerPicks) { item -> RecommendationCard(item) { selectedItem = item } }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            
             Text("מגמות עכשיו", fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -152,6 +183,42 @@ fun DiscoverySuccessState(results: List<SearchResult>, query: String, onItemSele
         LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             items(results) { item -> DiscoveryCard(item) { onItemSelected(item) } }
         }
+    }
+}
+
+@Composable
+fun TelegramBotCard(
+    name: String,
+    handle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(160.dp).height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(handle, fontSize = 12.sp, color = Color.Gray)
+        }
+    }
+}
+
+private fun launchTelegramBot(context: android.content.Context, botName: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=$botName"))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$botName")))
     }
 }
 

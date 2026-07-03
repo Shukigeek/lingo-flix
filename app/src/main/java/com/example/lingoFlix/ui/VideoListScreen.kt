@@ -89,6 +89,7 @@ fun VideoListScreen(
     
     val metadataState = metadataDao?.getAllMetadata()?.collectAsState(initial = emptyList())
     val allMetadata = metadataState?.value ?: emptyList()
+    val metadataMap = remember(allMetadata) { allMetadata.associateBy { it.filePath } }
 
     LaunchedEffect(currentDir) {
         onDirChanged(currentDir)
@@ -136,6 +137,28 @@ fun VideoListScreen(
     var newFileName by remember { mutableStateOf("") }
     var selectedDifficulty by remember { mutableStateOf("קל") }
 
+    val importVideoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            LingoLog.d("VideoListScreen", "Video picked with OpenDocument: $uri")
+            context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            scope.launch(Dispatchers.IO) {
+                val name = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
+                LingoLog.d("VideoListScreen", "Resolved filename: $name")
+                val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, name, currentDir)
+                withContext(Dispatchers.Main) {
+                    if (savedFile != null) {
+                        Toast.makeText(context, "סרטון $name נוסף בהצלחה!", Toast.LENGTH_SHORT).show()
+                        currentDir = File(currentDir.absolutePath) // Refresh
+                    } else {
+                        Toast.makeText(context, "שגיאה בהוספת הסרטון", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     val handleBack = {
         if (currentDir != rootVideoDir) {
             currentDir = currentDir.parentFile ?: rootVideoDir
@@ -146,8 +169,9 @@ fun VideoListScreen(
     
     BackHandler(enabled = true, onBack = handleBack)
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Scaffold { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -168,6 +192,9 @@ fun VideoListScreen(
                     )
                 }
                 Row {
+                    IconButton(onClick = { importVideoLauncher.launch(arrayOf("video/*")) }) {
+                        Icon(Icons.Default.AddCircle, contentDescription = "Add New Video", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = onPickDirectory) {
                         Icon(Icons.Default.FolderOpen, contentDescription = "Open Device Folder")
                     }
@@ -200,14 +227,14 @@ fun VideoListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(items) { file ->
-                            val metadata = allMetadata.find { it.filePath == file.absolutePath }
+                            val metadata = metadataMap[file.absolutePath]
                             val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
                             GalleryItem(
                                 file = file,
                                 metadata = metadata,
                                 onVideoSelected = {
                                     if (file.isDirectory) currentDir = file
-                                    else onVideoSelected(Uri.fromFile(file))
+                                    else videoForQuiz = file
                                 },
                                 onLongClick = { 
                                     if (file.isDirectory) folderToDelete = file 
@@ -240,7 +267,7 @@ fun VideoListScreen(
                 } else {
                     LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
                         items(items) { file ->
-                            val metadata = allMetadata.find { it.filePath == file.absolutePath }
+                            val metadata = metadataMap[file.absolutePath]
                             val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
                             VideoItem(
                                 file = file,
@@ -248,7 +275,7 @@ fun VideoListScreen(
                                 context = context,
                                 onVideoSelected = {
                                     if (file.isDirectory) currentDir = file
-                                    else onVideoSelected(Uri.fromFile(file))
+                                    else videoForQuiz = file
                                 },
                                 onPractice = { videoForQuiz = file },
                                 isLinked = linkedVideos.contains(relativePath),
@@ -277,11 +304,12 @@ fun VideoListScreen(
             }
         }
     }
+    }
 
     // Dialogs
     if (videoToEditMetadata != null) {
         val file = videoToEditMetadata!!
-        val metadata = allMetadata.find { it.filePath == file.absolutePath } ?: VideoMetadata(file.absolutePath)
+        val metadata = metadataMap[file.absolutePath] ?: VideoMetadata(file.absolutePath)
         
         MetadataEditDialog(
             metadata = metadata,
