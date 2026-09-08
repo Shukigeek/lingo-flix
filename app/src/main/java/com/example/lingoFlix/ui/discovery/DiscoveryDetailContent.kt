@@ -8,13 +8,14 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -37,10 +38,23 @@ import java.net.URLEncoder
 fun DiscoveryDetailContent(
     item: SearchResult, 
     onDismiss: () -> Unit,
-    onAddToRecommendations: (SearchResult) -> Unit
+    onAddToRecommendations: (SearchResult) -> Unit,
+    isServerOnline: Boolean = false
 ) {
     val context = LocalContext.current
-    val className = "DiscoveryDetailContent"
+    val scope = rememberCoroutineScope()
+    var proInfo by remember { mutableStateOf<Map<String, Any>?>(null) }
+    
+    LaunchedEffect(item, isServerOnline) {
+        if (isServerOnline) {
+            try {
+                val api = com.example.lingoFlix.api.LingoApiService.create()
+                proInfo = api.getMovieProInfo(item.title)
+            } catch (e: Exception) {
+                LingoLog.w("DiscoveryDetailContent", "Failed to fetch pro info: ${e.message}")
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -118,6 +132,22 @@ fun DiscoveryDetailContent(
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.LightGray
             )
+
+            if (proInfo != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Surface(
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("מידע נוסף מהשרת המרוחק:", fontWeight = FontWeight.Bold, color = Color(0xFF58CC02))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("שחקנים: ${(proInfo!!["cast"] as? List<*>)?.joinToString(", ") ?: "לא ידוע"}", color = Color.LightGray)
+                        Text("תיאור מורחב: ${proInfo!!["description"] ?: "אין"}", color = Color.LightGray)
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
             

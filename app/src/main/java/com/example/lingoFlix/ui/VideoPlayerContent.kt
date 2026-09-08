@@ -5,6 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -227,10 +228,11 @@ fun SubtitleSection(
     subtitleIsBold: Boolean,
     currentFontFamily: FontFamily,
     shakeOffset: Float,
-    flashColor: Color
+    flashColor: Color,
+    onWordClick: (String) -> Unit = {}
 ) {
     val isRtl = detectedLanguage == "עברית"
-    val textColor = try { 
+    val textColor = try {
         Color(android.graphics.Color.parseColor(subtitleColorHex)) 
     } catch(e: Exception) { 
         LingoLog.e("SubtitleSection", "Error parsing color: $subtitleColorHex", e)
@@ -299,25 +301,37 @@ fun SubtitleSection(
                                             textAlign = TextAlign.Center,
                                             shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
                                         ),
-                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                        modifier = Modifier.padding(horizontal = 4.dp).clickable { onWordClick(word.trim().replace(Regex("[.,!?;]"), "")) }
                                     )
                                 }
                             }
                         }
                     } else {
-                        Text(
-                            text = text,
-                            color = textColor,
-                            fontSize = subtitleFontSize.sp,
-                            fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
-                            fontFamily = currentFontFamily,
+                        val allWords = remember(text) { text.split(Regex("(?<=\\s)|(?=\\s)")).filter { it.isNotBlank() } }
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
-                            ),
-                            textAlign = TextAlign.Center
-                        )
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            allWords.forEach { word ->
+                                Text(
+                                    text = word,
+                                    color = textColor,
+                                    fontSize = subtitleFontSize.sp,
+                                    fontWeight = if (subtitleIsBold) FontWeight.Bold else FontWeight.Normal,
+                                    fontFamily = currentFontFamily,
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, offset = androidx.compose.ui.geometry.Offset(2f, 2f), blurRadius = 4f)
+                                    ),
+                                    modifier = Modifier
+                                        .padding(horizontal = 2.dp)
+                                        .clickable { 
+                                            val cleanWord = word.trim().replace(Regex("[.,!?;]"), "")
+                                            if (cleanWord.isNotEmpty()) onWordClick(cleanWord) 
+                                        }
+                                )
+                            }
+                        }
                     }
                 }
             }

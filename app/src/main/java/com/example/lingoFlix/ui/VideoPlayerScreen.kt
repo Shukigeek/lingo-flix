@@ -37,6 +37,7 @@ fun VideoPlayerScreen(
     isRandomMode: Boolean = false,
     difficulty: String = "קל",
     onCorrectAnswer: (Int) -> Unit = {},
+    onSaveWord: (String, String) -> Unit = { _, _ -> },
     userId: String = "guest",
     quizType: String = "typing"
 ) {
@@ -47,6 +48,8 @@ fun VideoPlayerScreen(
     var isFullScreen by remember { mutableStateOf(false) }
     var currentClipIndex by remember { mutableIntStateOf(0) }
     
+    var selectedWordForDialog by remember { mutableStateOf<String?>(null) }
+
     val currentClip = remember(clips, currentClipIndex) {
         if (clips != null && currentClipIndex < clips.size) clips[currentClipIndex] else null
     }
@@ -147,11 +150,27 @@ fun VideoPlayerScreen(
         clips, subtitlesVisible, currentClipIndex, favoriteClips, onToggleFavorite, hiddenIndices, wordsList, userInput, { userInput = it }, isChecked, { isChecked = true }, detectedLanguage, subtitleColorHex, subtitleFontSize, subtitleIsBold, currentFontFamily, shakeOffset.value, flashColor, correctCount, totalAttempted, difficulty,
         { isSessionComplete = false; correctCount = 0; totalAttempted = 0; currentClipIndex = 0; userInput = ""; isChecked = false }, { exoPlayer.seekTo(clips!![currentClipIndex].startTimeMs); exoPlayer.play() },
         { if (clips != null && clips.isNotEmpty()) { totalAttempted++; if (currentClipIndex < clips.size - 1) currentClipIndex++ else isSessionComplete = true; userInput = ""; isChecked = false } },
-        { line, missing -> xRayLine = line; xRayMissingWords = missing; showXRay = true }
+        { line, missing -> xRayLine = line; xRayMissingWords = missing; showXRay = true },
+        onWordClick = { selectedWordForDialog = it }
     )
+
+    if (selectedWordForDialog != null) {
+        com.example.lingoFlix.ui.components.WordDetailsDialog(
+            word = selectedWordForDialog!!,
+            sourceLang = detectedLanguage,
+            onDismiss = { selectedWordForDialog = null },
+            onAddToLearning = { word, trans -> 
+                onSaveWord(word, trans)
+            }
+        )
+    }
+
+    val apiService = remember { com.example.lingoFlix.api.LingoApiService.create() }
 
     LaunchedEffect(isChecked) {
         if (isChecked && isQuizMode) {
+            val hiddenWords = wordsList.filterIndexed { index, _ -> hiddenIndices.contains(index) }.joinToString(" ")
+            
             if (allCorrect) {
                 correctCount++; comboCount++; onCorrectAnswer(if (comboCount >= 10) 10 else if (comboCount >= 5) 5 else if (comboCount >= 3) 3 else if (comboCount >= 2) 2 else 1)
                 flashColor = Color.Green; delay(500); flashColor = Color.Transparent
@@ -160,6 +179,18 @@ fun VideoPlayerScreen(
                 comboCount = 0; heartsLeft = (heartsLeft - 1).coerceAtLeast(0); flashColor = Color.Red
                 repeat(3) { shakeOffset.animateTo(10f, spring(Spring.DampingRatioHighBouncy)); shakeOffset.animateTo(-10f, spring(Spring.DampingRatioHighBouncy)) }
                 shakeOffset.animateTo(0f); delay(500); flashColor = Color.Transparent
+            }
+
+            // Sync with Python Backend
+            scope.launch {
+                try {
+                    apiService.updateActivity(com.example.lingoFlix.api.ActivityUpdate(
+                        word = hiddenWords,
+                        is_correct = allCorrect
+                    ))
+                } catch (e: Exception) {
+                    LingoLog.w("VideoPlayerScreen", "Sync to backend failed: ${e.message}")
+                }
             }
         }
     }

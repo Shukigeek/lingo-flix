@@ -1,5 +1,6 @@
 package com.example.lingoFlix.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,9 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.lingoFlix.api.LingoApiService
+import com.example.lingoFlix.api.TranslationRequest
 import com.example.lingoFlix.utils.OfflineTranslator
 import com.example.lingoFlix.utils.LingoLog
-import android.content.Context
 
 @Composable
 fun DifficultySelectionDialog(onDismiss: () -> Unit, onStart: (String, String) -> Unit) {
@@ -182,6 +184,83 @@ fun XRayDialog(
         },
         confirmButton = {
             Button(onClick = onDismiss) { Text("הבנתי") }
+        }
+    )
+}
+
+@Composable
+fun WordDetailsDialog(
+    word: String,
+    sentence: String = "",
+    sourceLang: String = "אנגלית",
+    onDismiss: () -> Unit,
+    onAddToLearning: (String, String) -> Unit
+) {
+    var translation by remember { mutableStateOf<String?>(null) }
+    var explanation by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    val apiService = remember { LingoApiService.create() }
+
+    LaunchedEffect(word) {
+        isLoading = true
+        try {
+            val response = apiService.translateWord(TranslationRequest(word, sentence))
+            translation = response.translation
+            explanation = response.explanation
+        } catch (e: Exception) {
+            LingoLog.w("CommonDialogs", "Online translation failed: ${e.message}")
+            val langCode = OfflineTranslator.mapLanguage(sourceLang)
+            translation = OfflineTranslator.translate(word, langCode)
+            explanation = "בוצע תרגום אופליין (ללא הקשר AI)"
+        }
+        isLoading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(word, style = MaterialTheme.typography.headlineMedium) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Text(
+                        text = translation ?: "לא נמצא תרגום",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    explanation?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("תרצה להוסיף את המילה למחסן המילים שלך?", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    translation?.let { onAddToLearning(word, it) }
+                    onDismiss()
+                },
+                enabled = !isLoading && translation != null
+            ) {
+                Text("הוסף ללמידה")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ביטול")
+            }
         }
     )
 }

@@ -3,12 +3,14 @@ package com.example.lingoFlix.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -18,12 +20,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.lingoFlix.data.AppDatabase
 import com.example.lingoFlix.data.remote.TmdbApiService
 import com.example.lingoFlix.data.repository.TmdbRepository
@@ -39,12 +44,19 @@ import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DiscoveryScreen(userId: String) {
+fun DiscoveryScreen(
+    userId: String,
+    isServerOnline: Boolean = false
+) {
     val context = LocalContext.current
-    val className = "DiscoveryScreen"
+    val scope = rememberCoroutineScope()
     
     val database = remember { AppDatabase.getDatabase(context) }
     val apiService = remember { TmdbApiService.create() }
+    val lingoApiService = remember { com.example.lingoFlix.api.LingoApiService.create() }
+    
+    var cloudMovies by remember { mutableStateOf<List<com.example.lingoFlix.api.CloudMovie>>(emptyList()) }
+    
     val tmdbRepository = remember { TmdbRepository(apiService) }
     val recommendedRepository = remember { RecommendedMediaRepository(database.recommendedMediaDao(), apiService) }
     
@@ -58,9 +70,16 @@ fun DiscoveryScreen(userId: String) {
     var selectedItem by remember { mutableStateOf<SearchResult?>(null) }
     val tmdbApiKey = remember { SecurityUtils.getTmdbApiKey(context, userId) }
 
-    LaunchedEffect(tmdbApiKey) {
+    LaunchedEffect(tmdbApiKey, isServerOnline) {
         if (!tmdbApiKey.isNullOrBlank()) {
             viewModel.fetchTrending(tmdbApiKey)
+        }
+        if (isServerOnline) {
+            try {
+                cloudMovies = lingoApiService.getCloudLibrary()
+            } catch (e: Exception) {
+                LingoLog.e("DiscoveryScreen", "Failed to fetch cloud library", e)
+            }
         }
     }
 
@@ -84,33 +103,67 @@ fun DiscoveryScreen(userId: String) {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (query.isEmpty()) {
-            // Telegram Bots Section
-            Text("בוטים בטלגרם (למציאת תוכן)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            // Content Sources Section
+            Text("מקורות תוכן חיצוניים", fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {
-                    TelegramBotCard(
-                        name = "Friends Robot",
-                        handle = "@FriendsRobot",
-                        icon = Icons.Default.SmartToy,
-                        color = Color(0xFF24A1DE)
+                    SourceCard(
+                        name = "YouTube",
+                        icon = Icons.Default.PlayCircle,
+                        color = Color(0xFFFF0000)
                     ) {
-                        launchTelegramBot(context, "FriendsRobot")
+                        launchExternalSearch(context, "https://www.youtube.com/results?search_query=")
                     }
                 }
                 item {
-                    TelegramBotCard(
-                        name = "חיפוש כללי",
-                        handle = "Search",
-                        icon = Icons.Default.Search,
-                        color = Color(0xFFE91E63)
+                    SourceCard(
+                        name = "Netflix",
+                        icon = Icons.Default.Movie,
+                        color = Color(0xFFE50914)
+                    ) {
+                        launchExternalSearch(context, "https://www.netflix.com/search?q=")
+                    }
+                }
+                item {
+                    SourceCard(
+                        name = "Telegram",
+                        icon = Icons.Default.Send,
+                        color = Color(0xFF24A1DE)
                     ) {
                         launchTelegramSearch(context, "")
+                    }
+                }
+                item {
+                    SourceCard(
+                        name = "Torrent",
+                        icon = Icons.Default.FileDownload,
+                        color = Color(0xFF4CAF50)
+                    ) {
+                        launchExternalSearch(context, "https://1337x.to/search/")
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
+
+            if (cloudMovies.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(8.dp).background(Color(0xFF58CC02), CircleShape))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("הספרייה הפרטית בשרת (Cloud)", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(cloudMovies) { movie ->
+                        CloudMovieCard(movie) {
+                            // Logic to request this movie from server
+                            Toast.makeText(context, "מבקש את '${movie.title}' מהשרת...", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             if (developerPicks.isNotEmpty()) {
                 Text("המלצות המפתח (מומלץ!)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -146,7 +199,12 @@ fun DiscoveryScreen(userId: String) {
             containerColor = Color(0xFF141414),
             contentColor = Color.White
         ) {
-            DiscoveryDetailContent(item = selectedItem!!, onDismiss = { selectedItem = null }, onAddToRecommendations = { viewModel.addToSystemRecommendations(it) })
+            DiscoveryDetailContent(
+                item = selectedItem!!, 
+                onDismiss = { selectedItem = null }, 
+                onAddToRecommendations = { viewModel.addToSystemRecommendations(it) },
+                isServerOnline = isServerOnline
+            )
         }
     }
 }
@@ -183,6 +241,40 @@ fun DiscoverySuccessState(results: List<SearchResult>, query: String, onItemSele
         LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             items(results) { item -> DiscoveryCard(item) { onItemSelected(item) } }
         }
+    }
+}
+
+@Composable
+fun SourceCard(
+    name: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(140.dp).height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
+        }
+    }
+}
+
+private fun launchExternalSearch(context: android.content.Context, baseUrl: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(baseUrl))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "לא ניתן לפתוח את הקישור", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -233,5 +325,40 @@ private fun launchTelegramSearch(context: android.content.Context, query: String
         }
     } catch (e: Exception) {
         LingoLog.e("DiscoveryScreen", "Failed to launch Telegram search", e)
+    }
+}
+
+@Composable
+fun CloudMovieCard(movie: com.example.lingoFlix.api.CloudMovie, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(160.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column {
+            AsyncImage(
+                model = movie.image_url,
+                contentDescription = null,
+                modifier = Modifier.height(200.dp).fillMaxWidth(),
+                contentScale = ContentScale.Crop
+            )
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(movie.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(movie.category, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "רמה: ${movie.difficulty}",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
     }
 }

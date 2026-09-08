@@ -9,10 +9,11 @@ import com.example.lingoFlix.model.RecommendedMedia
 import com.example.lingoFlix.model.DynamicSkill
 import com.example.lingoFlix.model.AppConfig
 import com.example.lingoFlix.model.FavoriteClip
+import com.example.lingoFlix.model.VocabularyWord
 
 @Database(
-    entities = [VideoMetadata::class, RecommendedMedia::class, DynamicSkill::class, AppConfig::class, FavoriteClip::class], 
-    version = 5, 
+    entities = [VideoMetadata::class, RecommendedMedia::class, DynamicSkill::class, AppConfig::class, FavoriteClip::class, VocabularyWord::class],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun skillDao(): SkillDao
     abstract fun configDao(): ConfigDao
     abstract fun favoriteClipDao(): FavoriteClipDao
+    abstract fun vocabularyDao(): VocabularyDao
 
     companion object {
         @Volatile

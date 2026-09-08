@@ -9,6 +9,9 @@ interface FavoriteClipDao {
     @Query("SELECT * FROM favorite_clips")
     fun getAllFavorites(): Flow<List<FavoriteClip>>
 
+    @Query("SELECT * FROM favorite_clips")
+    suspend fun getAllFavoritesList(): List<FavoriteClip>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFavorite(clip: FavoriteClip)
 

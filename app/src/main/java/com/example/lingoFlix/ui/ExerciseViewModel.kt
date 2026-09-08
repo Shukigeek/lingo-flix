@@ -40,6 +40,24 @@ class ExerciseViewModel : ViewModel() {
 
     private var allSegments = listOf<SubtitleSegment>()
 
+    fun loadClips(clips: List<com.example.lingoFlix.model.SubtitleClip>) {
+        try {
+            LingoLog.d("ExerciseViewModel", "Loading ${clips.size} clips into exercise")
+            allSegments = clips.mapIndexed { index, clip ->
+                SubtitleSegment(index, clip.startTimeMs, clip.endTimeMs, clip.text)
+            }
+            totalQuestions = allSegments.size
+            _questionIndex.value = 0
+            _hearts.value = 3
+            _streak.value = 0
+            _isGameOver.value = false
+            nextQuestion()
+        } catch (e: Exception) {
+            LingoLog.e("ExerciseViewModel", "Failed to load clips", e)
+            _isGameOver.value = true
+        }
+    }
+
     fun loadProject(srtFile: File) {
         try {
             LingoLog.d("ExerciseViewModel", "Loading project from: ${srtFile.absolutePath}")

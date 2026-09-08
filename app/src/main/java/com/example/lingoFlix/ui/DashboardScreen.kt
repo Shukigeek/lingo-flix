@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -47,32 +48,23 @@ fun DashboardScreen(
     userName: String = "Lingo Learner",
     skills: List<DynamicSkill> = emptyList(),
     onBuildSkill: () -> Unit = {},
-    onAdminClick: () -> Unit = {}
+    onAdminClick: () -> Unit = {},
+    isServerOnline: Boolean = false,
+    onCheckServer: () -> Unit = {},
+    updateAvailable: String? = null
 ) {
     val context = LocalContext.current
+    
+    // Status Indicator logic
+    LaunchedEffect(Unit) {
+        onCheckServer()
+    }
     
     val xpInCurrentLevel = totalXP % 1000
     val userProgress = xpInCurrentLevel / 1000f
 
     Scaffold(
-        containerColor = Color.Transparent, 
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    try {
-                        LingoLog.d("DashboardScreen", "Upload video clicked")
-                        onUploadVideo()
-                    } catch (e: Exception) {
-                        LingoLog.e("DashboardScreen", "Error in onUploadVideo", e)
-                    }
-                },
-                containerColor = Color(0xFF58CC02), // DuoGreen
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Upload")
-            }
-        }
+        containerColor = Color.Transparent
     ) { padding ->
         Box(
             modifier = Modifier
@@ -88,12 +80,50 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp)
                 ) {
                     item {
-                        UserProfileSection(
-                            userName = userName,
-                            totalXP = totalXP,
-                            onProfileClick = onProfileClick,
-                            onAdminClick = onAdminClick
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            UserProfileSection(
+                                userName = userName,
+                                totalXP = totalXP,
+                                onProfileClick = onProfileClick,
+                                onAdminClick = onAdminClick,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            // Server Connection Indicator
+                            Column(horizontalAlignment = Alignment.End) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(if (isServerOnline) Color(0xFF58CC02) else Color.Gray, CircleShape)
+                                        .border(2.dp, Color.White, CircleShape)
+                                )
+                                Text(
+                                    text = if (isServerOnline) "Online" else "Offline",
+                                    fontSize = 10.sp,
+                                    color = if (isServerOnline) Color(0xFF58CC02) else Color.Gray
+                                )
+                            }
+                        }
+                    }
+
+                    if (updateAvailable != null) {
+                        item {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth().clickable { /* Handle APK download */ }
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.SystemUpdate, null)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("גרסה חדשה זמינה בשרת: $updateAvailable", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
                     }
 
                     item {

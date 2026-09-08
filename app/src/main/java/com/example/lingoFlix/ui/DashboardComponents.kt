@@ -24,7 +24,8 @@ fun UserProfileSection(
     userName: String,
     totalXP: Int,
     onProfileClick: () -> Unit,
-    onAdminClick: () -> Unit
+    onAdminClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val xpInCurrentLevel = totalXP % 1000
     val userProgress = xpInCurrentLevel / 1000f
@@ -32,7 +33,8 @@ fun UserProfileSection(
     Surface(
         color = Color.White.copy(alpha = 0.85f),
         shape = RoundedCornerShape(24.dp),
-        shadowElevation = 4.dp
+        shadowElevation = 4.dp,
+        modifier = modifier
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {

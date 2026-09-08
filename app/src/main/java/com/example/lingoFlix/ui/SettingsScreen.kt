@@ -22,21 +22,17 @@ fun SettingsScreen(
     currentGeminiApiKey: String,
     currentTmdbApiKey: String,
     currentAnthropicApiKey: String = "",
-    onSaveKeys: (String, String, String) -> Unit,
+    currentOpenAiApiKey: String = "",
+    onSaveKeys: (String, String, String, String) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     var geminiApiKey by remember { mutableStateOf(currentGeminiApiKey) }
     var tmdbApiKey by remember { mutableStateOf(currentTmdbApiKey) }
     var anthropicApiKey by remember { mutableStateOf(currentAnthropicApiKey) }
+    var openAiApiKey by remember { mutableStateOf(currentOpenAiApiKey) }
 
-    LaunchedEffect(Unit) {
-        try {
-            LingoLog.d("SettingsScreen", "Settings screen loaded")
-        } catch (e: Exception) {
-            LingoLog.e("SettingsScreen", "Error in SettingsScreen", e)
-        }
-    }
+    var selectedTheme by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -62,51 +58,74 @@ fun SettingsScreen(
             )
             
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             OutlinedTextField(
                 value = geminiApiKey,
                 onValueChange = { geminiApiKey = it },
-                label = { Text("Gemini API Key (עבור כתוביות AI)") },
-                placeholder = { Text("הזן מפתח כאן...") },
+                label = { Text("Gemini API Key") },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
-                singleLine = true
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
             )
-
+            
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = tmdbApiKey,
                 onValueChange = { tmdbApiKey = it },
-                label = { Text("TMDB API Key (עבור גילוי תוכן)") },
-                placeholder = { Text("הזן מפתח TMDB כאן...") },
+                label = { Text("TMDB API Key") },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
-                singleLine = true
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = anthropicApiKey,
                 onValueChange = { anthropicApiKey = it },
-                label = { Text("Anthropic API Key (בונה הסקילים)") },
-                placeholder = { Text("הזן מפתח Anthropic כאן...") },
+                label = { Text("Anthropic API Key") },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) },
-                singleLine = true
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = openAiApiKey,
+                onValueChange = { openAiApiKey = it },
+                label = { Text("OpenAI API Key (for Pro Subtitles)") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Text(
+                text = "ערכת נושא (רקע)",
+                style = MaterialTheme.typography.titleLarge
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("ברירת מחדל", "כחול שמיים", "ירוק טבע").forEachIndexed { index, name ->
+                    FilterChip(
+                        selected = selectedTheme == index,
+                        onClick = { selectedTheme = index },
+                        label = { Text(name) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
             
             Button(
                 onClick = {
-                    onSaveKeys(geminiApiKey, tmdbApiKey, anthropicApiKey)
-                    Toast.makeText(context, "המפתחות נשמרו!", Toast.LENGTH_SHORT).show()
+                    onSaveKeys(geminiApiKey, tmdbApiKey, anthropicApiKey, openAiApiKey)
+                    Toast.makeText(context, "ההגדרות נשמרו!", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("שמור מפתחות")
+                Text("שמור הגדרות")
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -124,9 +143,10 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "1. Gemini API: משמש לייצור כתוביות (SRT) לסרטונים המקומיים שלך.\n" +
-                        "2. TMDB API: משמש לחיפוש סדרות וסרטים בטאב 'גילוי'.\n\n" +
-                        "ניתן להשיג את המפתחות בחינם באתרים של Google AI Studio ו-TheMovieDB.",
+                        "1. Gemini API: משמש לייצור כתוביות בסיסי.\n" +
+                        "2. OpenAI API: משמש לייצור כתוביות Pro (Whisper) ברמה הגבוהה ביותר.\n" +
+                        "3. TMDB API: משמש לחיפוש מידע על סרטים.\n\n" +
+                        "ניתן להשיג את המפתחות באתרים של OpenAI ו-Google AI Studio.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -135,7 +155,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                text = "גרסה: 1.0.0",
+                text = "גרסה: 1.1.0",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

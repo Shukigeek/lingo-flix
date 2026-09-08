@@ -349,6 +349,15 @@ fun VideoItem(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(metadata?.title ?: file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (metadata?.description?.isNotBlank() == true) {
+                        Text(
+                            text = metadata.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (metadata?.season != null) Text("S${metadata.season}E${metadata.episode ?: 0} • ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (isDirectory) "תיקייה" else (duration ?: ""), style = MaterialTheme.typography.bodySmall, color = Color.Gray)

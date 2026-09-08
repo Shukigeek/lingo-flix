@@ -3,8 +3,10 @@ package com.example.lingoFlix.ui.viewmodel
 import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.lingoFlix.model.SubtitleClip
 import com.example.lingoFlix.model.UserProfile
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -20,11 +22,38 @@ class MainViewModel : ViewModel() {
     
     var isQuizModeActive by mutableStateOf(false)
     var isRandomModeActive by mutableStateOf(false)
+
+    // Server Connectivity State
+    var isServerOnline by mutableStateOf(false)
+    var serverVersion by mutableStateOf("")
+    var updateAvailable by mutableStateOf<String?>(null)
+
+    private val apiService = com.example.lingoFlix.api.LingoApiService.create()
+
+    fun checkServerStatus() {
+        viewModelScope.launch {
+            try {
+                val health = apiService.checkServerHealth()
+                isServerOnline = health["status"] == "online"
+                serverVersion = health["version"] ?: ""
+                
+                // Also check for updates
+                val update = apiService.checkUpdate()
+                if (update["latest_version"] != "1.4") { // Compare with current app version
+                    updateAvailable = update["latest_version"]
+                }
+            } catch (e: Exception) {
+                isServerOnline = false
+            }
+        }
+    }
     var quizDifficulty by mutableStateOf("קל")
     var quizType by mutableStateOf("typing")
     
     var favoriteClips by mutableStateOf(setOf<String>())
     var linkedVideos by mutableStateOf(setOf<String>())
+    
+    var backgroundResId by mutableIntStateOf(0) // 0 means default/transparent
 
     fun toggleFavorite(clipId: String) {
         favoriteClips = if (favoriteClips.contains(clipId)) {
@@ -44,5 +73,9 @@ class MainViewModel : ViewModel() {
         if (navigationStack.size > 1) {
             navigationStack = navigationStack.dropLast(1)
         }
+    }
+
+    fun updateUserName(newName: String) {
+        currentUser = currentUser.copy(name = newName)
     }
 }

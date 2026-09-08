@@ -1,31 +1,21 @@
 package com.example.lingoFlix.ui
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -34,29 +24,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lingoFlix.data.VideoMetadataDao
 import com.example.lingoFlix.model.VideoMetadata
 import com.example.lingoFlix.utils.FileUtils
+import com.example.lingoFlix.utils.LingoLog
 import com.example.lingoFlix.utils.SrtParser
 import com.example.lingoFlix.utils.SubtitleGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-
-import com.example.lingoFlix.utils.LingoLog
 
 @Composable
 fun VideoListScreen(
@@ -78,24 +61,44 @@ fun VideoListScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    LingoLog.d("VideoListScreen", "Initializing VideoListScreen")
-    
     val rootVideoDir = remember { File(context.filesDir, "videos") }
     if (!rootVideoDir.exists()) rootVideoDir.mkdirs()
     
     var currentDir by remember { mutableStateOf(initialDir ?: rootVideoDir) }
-    var isGridView by remember { mutableStateOf(true) }
-    var gridColumns by remember { mutableIntStateOf(2) }
+    var columnCount by remember { mutableIntStateOf(1) }
     
-    val metadataState = metadataDao?.getAllMetadata()?.collectAsState(initial = emptyList())
-    val allMetadata = metadataState?.value ?: emptyList()
-    val metadataMap = remember(allMetadata) { allMetadata.associateBy { it.filePath } }
-
+    val allMetadataState = metadataDao?.getAllMetadata()?.collectAsState(initial = emptyList())
+    val metadataMap = remember(allMetadataState?.value) {
+        allMetadataState?.value?.associateBy { it.filePath } ?: emptyMap()
+    }
+    
     LaunchedEffect(currentDir) {
         onDirChanged(currentDir)
     }
+    
+    val items = remember(currentDir) {
+        currentDir.listFiles()?.filter { it.isDirectory || it.extension != "srt" }
+            ?.distinctBy { it.absolutePath }
+            ?.sortedWith(compareBy({ !it.isDirectory }, { it.name })) ?: emptyList()
+    }
 
+    var videoToRename by remember { mutableStateOf<File?>(null) }
+    var videoToDelete by remember { mutableStateOf<File?>(null) }
+    var folderToDelete by remember { mutableStateOf<File?>(null) }
+    var videoToSearchSubtitles by remember { mutableStateOf<File?>(null) }
     var videoToImportSubtitles by remember { mutableStateOf<File?>(null) }
+    var videoToEditMetadata by remember { mutableStateOf<File?>(null) }
+    var videoForQuiz by remember { mutableStateOf<File?>(null) }
+    var videoToMove by remember { mutableStateOf<File?>(null) }
+    var showNewFolderDialog by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var subtitleSearchQuery by remember { mutableStateOf("") }
+    var newFileName by remember { mutableStateOf("") }
+    var selectedDifficulty by remember { mutableStateOf("קל") }
+
+    var isGeneratingSubtitles by remember { mutableStateOf(false) }
+    var generationProgress by remember { mutableStateOf("") }
+
     val importSubtitleLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -106,56 +109,12 @@ fun VideoListScreen(
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     srtFile.outputStream().use { output -> input.copyTo(output) }
                 }
-                Toast.makeText(context, "כתוביות יובאו!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "כתוביות יובאו בהצלחה!", Toast.LENGTH_SHORT).show()
                 currentDir = File(currentDir.absolutePath)
             } catch (e: Exception) {
-                Toast.makeText(context, "שגיאה בייבוא", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "שגיאה בייבוא הכתוביות", Toast.LENGTH_SHORT).show()
             }
             videoToImportSubtitles = null
-        }
-    }
-    
-    val videoExtensions = remember { listOf("mp4", "mkv", "avi", "mov", "webm") }
-    val items = remember(currentDir) {
-        currentDir.listFiles()?.filter { file ->
-            file.isDirectory || videoExtensions.any { ext -> file.name.endsWith(".$ext", ignoreCase = true) } || !file.name.contains(".")
-        }?.distinctBy { it.absolutePath }
-         ?.sortedWith(compareBy({ !it.isDirectory }, { it.name })) ?: emptyList()
-    }
-
-    var videoToRename by remember { mutableStateOf<File?>(null) }
-    var videoToDelete by remember { mutableStateOf<File?>(null) }
-    var folderToDelete by remember { mutableStateOf<File?>(null) }
-    var videoToSearchSubtitles by remember { mutableStateOf<File?>(null) }
-    var videoForQuiz by remember { mutableStateOf<File?>(null) }
-    var videoToMove by remember { mutableStateOf<File?>(null) }
-    var videoToEditMetadata by remember { mutableStateOf<File?>(null) }
-    
-    var showNewFolderDialog by remember { mutableStateOf(false) }
-    var newFolderName by remember { mutableStateOf("") }
-    var subtitleSearchQuery by remember { mutableStateOf("") }
-    var newFileName by remember { mutableStateOf("") }
-    var selectedDifficulty by remember { mutableStateOf("קל") }
-
-    val importVideoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            LingoLog.d("VideoListScreen", "Video picked with OpenDocument: $uri")
-            context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            scope.launch(Dispatchers.IO) {
-                val name = FileUtils.getFileName(context, uri) ?: "video_${System.currentTimeMillis()}.mp4"
-                LingoLog.d("VideoListScreen", "Resolved filename: $name")
-                val savedFile = FileUtils.saveVideoToInternalStorage(context, uri, name, currentDir)
-                withContext(Dispatchers.Main) {
-                    if (savedFile != null) {
-                        Toast.makeText(context, "סרטון $name נוסף בהצלחה!", Toast.LENGTH_SHORT).show()
-                        currentDir = File(currentDir.absolutePath) // Refresh
-                    } else {
-                        Toast.makeText(context, "שגיאה בהוספת הסרטון", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
         }
     }
 
@@ -169,9 +128,8 @@ fun VideoListScreen(
     
     BackHandler(enabled = true, onBack = handleBack)
 
-    Scaffold { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -188,26 +146,23 @@ fun VideoListScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 200.dp)
+                        modifier = Modifier.widthIn(max = 180.dp)
                     )
                 }
                 Row {
-                    IconButton(onClick = { importVideoLauncher.launch(arrayOf("video/*")) }) {
-                        Icon(Icons.Default.AddCircle, contentDescription = "Add New Video", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onPickDirectory) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = "Open Device Folder")
-                    }
-                    IconButton(onClick = { isGridView = !isGridView }) {
-                        Icon(if (isGridView) Icons.Default.List else Icons.Default.GridView, contentDescription = "Toggle View")
-                    }
-                    if (isGridView) {
-                        IconButton(onClick = { gridColumns = if (gridColumns == 2) 3 else 2 }) {
-                            Icon(Icons.Default.AspectRatio, contentDescription = "Grid Size")
-                        }
+                    IconButton(onClick = { 
+                        columnCount = if (columnCount == 1) 2 else if (columnCount == 2) 3 else 1 
+                    }) {
+                        Icon(
+                            if (columnCount == 1) Icons.Default.ViewModule else if (columnCount == 2) Icons.Default.GridView else Icons.Default.ViewStream,
+                            contentDescription = "שנה תצוגה"
+                        )
                     }
                     IconButton(onClick = { showNewFolderDialog = true }) {
                         Icon(Icons.Default.CreateNewFolder, contentDescription = "New Folder")
+                    }
+                    IconButton(onClick = onSettingsRequested) {
+                        Icon(Icons.Default.AutoStories, contentDescription = "Settings")
                     }
                 }
             }
@@ -219,83 +174,53 @@ fun VideoListScreen(
                     Text("אין סרטונים או תיקיות כאן. תעלה משהו!", color = MaterialTheme.colorScheme.onBackground)
                 }
             } else {
-                if (isGridView) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridColumns),
-                        contentPadding = PaddingValues(bottom = 80.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(items) { file ->
-                            val metadata = metadataMap[file.absolutePath]
-                            val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columnCount),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(items) { file ->
+                        val metadata = metadataMap[file.absolutePath]
+                        val relativePath = try { file.relativeTo(rootVideoDir).path } catch(e: Exception) { file.absolutePath }
+                        
+                        if (columnCount > 1) {
                             GalleryItem(
                                 file = file,
                                 metadata = metadata,
                                 onVideoSelected = {
                                     if (file.isDirectory) currentDir = file
-                                    else videoForQuiz = file
+                                    else onVideoSelected(Uri.fromFile(file))
                                 },
-                                onLongClick = { 
-                                    if (file.isDirectory) folderToDelete = file 
-                                    else videoToEditMetadata = file 
-                                },
-                                onMenuClick = { /* Handled in VideoActionsMenu */ },
+                                onLongClick = { videoToEditMetadata = file },
+                                onMenuClick = { },
                                 isLinked = linkedVideos.contains(relativePath),
                                 onToggleLink = { onToggleLink(relativePath) },
                                 onPractice = { videoForQuiz = file },
-                                onRename = { 
-                                    videoToRename = file
-                                    newFileName = file.name
-                                },
+                                onRename = { videoToRename = file; newFileName = file.name },
                                 onEditMetadata = { videoToEditMetadata = file },
-                                onSearchSubtitles = {
-                                    subtitleSearchQuery = file.nameWithoutExtension
-                                    videoToSearchSubtitles = file
-                                },
-                                onImportSubtitles = {
-                                    videoToImportSubtitles = file
-                                    importSubtitleLauncher.launch("*/*")
-                                },
-                                onDelete = { 
-                                    if (file.isDirectory) folderToDelete = file else videoToDelete = file 
-                                },
+                                onSearchSubtitles = { subtitleSearchQuery = file.nameWithoutExtension; videoToSearchSubtitles = file },
+                                onImportSubtitles = { videoToImportSubtitles = file; importSubtitleLauncher.launch("*/*") },
+                                onDelete = { if (file.isDirectory) folderToDelete = file else videoToDelete = file },
                                 onMove = { videoToMove = file }
                             )
-                        }
-                    }
-                } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
-                        items(items) { file ->
-                            val metadata = metadataMap[file.absolutePath]
-                            val relativePath = try { file.relativeTo(rootVideoDir).path } catch (e: Exception) { file.absolutePath }
+                        } else {
                             VideoItem(
                                 file = file,
                                 metadata = metadata,
                                 context = context,
                                 onVideoSelected = {
                                     if (file.isDirectory) currentDir = file
-                                    else videoForQuiz = file
+                                    else onVideoSelected(Uri.fromFile(file))
                                 },
                                 onPractice = { videoForQuiz = file },
                                 isLinked = linkedVideos.contains(relativePath),
                                 onToggleLink = { onToggleLink(relativePath) },
-                                onRename = { 
-                                    videoToRename = file
-                                    newFileName = file.name
-                                },
+                                onRename = { videoToRename = file; newFileName = file.name },
                                 onEditMetadata = { videoToEditMetadata = file },
-                                onSearchSubtitles = {
-                                    subtitleSearchQuery = file.nameWithoutExtension
-                                    videoToSearchSubtitles = file
-                                },
-                                onImportSubtitles = {
-                                    videoToImportSubtitles = file
-                                    importSubtitleLauncher.launch("*/*")
-                                },
-                                onDelete = { 
-                                    if (file.isDirectory) folderToDelete = file else videoToDelete = file 
-                                },
+                                onSearchSubtitles = { subtitleSearchQuery = file.nameWithoutExtension; videoToSearchSubtitles = file },
+                                onImportSubtitles = { videoToImportSubtitles = file; importSubtitleLauncher.launch("*/*") },
+                                onDelete = { if (file.isDirectory) folderToDelete = file else videoToDelete = file },
                                 onMove = { videoToMove = file }
                             )
                         }
@@ -303,63 +228,90 @@ fun VideoListScreen(
                 }
             }
         }
-    }
+
+        if (isGeneratingSubtitles) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.7f)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("מייצר כתוביות בעזרת AI...", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(generationProgress, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 
     // Dialogs
     if (videoToEditMetadata != null) {
         val file = videoToEditMetadata!!
         val metadata = metadataMap[file.absolutePath] ?: VideoMetadata(file.absolutePath)
-        
-        MetadataEditDialog(
-            metadata = metadata,
-            onDismiss = { videoToEditMetadata = null },
+        EditMetadataDialog(
+            initialMetadata = metadata,
             onSave = { updated ->
                 scope.launch {
                     metadataDao?.insertMetadata(updated)
                     videoToEditMetadata = null
                 }
             },
-            onDeleteFile = {
-                videoToEditMetadata = null
-                if (file.isDirectory) folderToDelete = file else videoToDelete = file
-            },
-            onRenameFile = {
-                videoToRename = file
-                newFileName = file.name
-                videoToEditMetadata = null
-            }
+            onDismiss = { videoToEditMetadata = null }
         )
     }
 
-    // Reuse existing dialogs (Renaming, Deleting, Moving, Subtitles) - Simplified/Integrated
-    // [Omitting redundant code for brevity but keeping logic]
     if (showNewFolderDialog) {
-        NewFolderDialog(
-            onConfirm = { name ->
-                val newDir = File(currentDir, name)
-                if (!newDir.exists()) newDir.mkdirs()
-                showNewFolderDialog = false
-                currentDir = File(currentDir.absolutePath)
+        AlertDialog(
+            onDismissRequest = { showNewFolderDialog = false },
+            title = { Text("תיקייה חדשה") },
+            text = {
+                TextField(value = newFolderName, onValueChange = { newFolderName = it }, label = { Text("שם התיקייה") })
             },
-            onDismiss = { showNewFolderDialog = false }
+            confirmButton = {
+                Button(onClick = {
+                    val newDir = File(currentDir, newFolderName)
+                    if (!newDir.exists()) newDir.mkdirs()
+                    showNewFolderDialog = false
+                    newFolderName = ""
+                    currentDir = File(currentDir.absolutePath)
+                }) { Text("צור") }
+            },
+            dismissButton = { TextButton(onClick = { showNewFolderDialog = false }) { Text("ביטול") } }
         )
     }
 
     if (videoForQuiz != null) {
-        DifficultySelectionDialog(
-            onDifficultySelected = { level ->
-                val file = videoForQuiz!!
-                videoForQuiz = null
-                onToggleDifficulty(level)
-                onPracticeRequested(file, true)
+        AlertDialog(
+            onDismissRequest = { videoForQuiz = null },
+            title = { Text("בחר רמת קושי") },
+            text = {
+                Column {
+                    listOf("קל", "בינוני", "קשה").forEach { level ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { selectedDifficulty = level }.padding(vertical = 8.dp)) {
+                            RadioButton(selected = selectedDifficulty == level, onClick = { selectedDifficulty = level })
+                            Text(level, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
             },
-            onRegularView = {
-                val file = videoForQuiz!!
-                videoForQuiz = null
-                onPracticeRequested(file, false)
+            confirmButton = {
+                Button(onClick = {
+                    val f = videoForQuiz!!; videoForQuiz = null
+                    onToggleDifficulty(selectedDifficulty)
+                    onPracticeRequested(f, true)
+                }) { Text("התחל") }
             },
-            onDismiss = { videoForQuiz = null }
+            dismissButton = {
+                TextButton(onClick = { 
+                    val f = videoForQuiz!!; videoForQuiz = null
+                    onPracticeRequested(f, false)
+                }) { Text("צפייה רגילה") }
+            }
         )
     }
 
@@ -373,18 +325,19 @@ fun VideoListScreen(
                     LazyColumn {
                         items(allFolders) { folder ->
                             val folderName = if (folder == rootVideoDir) "תיקייה ראשית" else folder.relativeTo(rootVideoDir).path
-                            // Ensure target is a directory and not the source itself (if source is directory)
-                            val isSourceSubdir = videoToMove?.absolutePath?.startsWith(folder.absolutePath) == true
-                            if (folder != videoToMove && !isSourceSubdir) { 
+                            if (folder != videoToMove && !videoToMove!!.absolutePath.startsWith(folder.absolutePath)) { 
                                 Text(
                                     text = folderName,
                                     modifier = Modifier.fillMaxWidth().clickable {
                                         val source = videoToMove!!
                                         val target = File(folder, source.name)
                                         if (source.renameTo(target)) {
-                                            if (!source.isDirectory) {
-                                                val srtSource = File(source.parentFile, "${source.nameWithoutExtension}.srt")
-                                                if (srtSource.exists()) srtSource.renameTo(File(folder, srtSource.name))
+                                            scope.launch {
+                                                val meta = metadataDao?.getMetadataForVideo(source.absolutePath)
+                                                if (meta != null) {
+                                                    metadataDao.deleteByPath(source.absolutePath)
+                                                    metadataDao.insertMetadata(meta.copy(filePath = target.absolutePath))
+                                                }
                                             }
                                             currentDir = File(currentDir.absolutePath)
                                         }
@@ -408,10 +361,10 @@ fun VideoListScreen(
             title = { Text("חפש כתוביות") },
             text = {
                 Column {
-                    TextField(value = subtitleSearchQuery, onValueChange = { subtitleSearchQuery = it }, placeholder = { Text("שם הסרט") }, modifier = Modifier.fillMaxWidth())
+                    TextField(value = subtitleSearchQuery, onValueChange = { subtitleSearchQuery = it }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${subtitleSearchQuery}+subtitles+srt"))) }, modifier = Modifier.fillMaxWidth()) { Text("חפש ב-Google") }
-                    Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ktuvit.me/Movie/Search?q=${subtitleSearchQuery}"))) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("חפש ב-Ktuvit") }
+                    Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${subtitleSearchQuery}+subtitles+srt"))) }, modifier = Modifier.fillMaxWidth()) { Text("Google") }
+                    Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ktuvit.me/Movie/Search?q=${subtitleSearchQuery}"))) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("Ktuvit") }
                 }
             },
             confirmButton = {},
@@ -422,21 +375,15 @@ fun VideoListScreen(
     if (videoToDelete != null) {
         AlertDialog(
             onDismissRequest = { videoToDelete = null },
-            title = { Text("מחיקת סרטון") },
-            text = { Text("האם למחוק את ${videoToDelete?.name}?") },
+            title = { Text("מחיקה") },
+            text = { Text("למחוק את ${videoToDelete?.name}?") },
             confirmButton = {
                 Button(onClick = {
-                    val file = videoToDelete!!
-                    val srtFile = File(file.parentFile, "${file.nameWithoutExtension}.srt")
-                    if (srtFile.exists()) srtFile.delete()
-                    
-                    val parent = file.parentFile
-                    if (file.delete()) {
-                        scope.launch { metadataDao?.deleteByPath(file.absolutePath) }
-                        // Cleanup parent folder if empty and not root
-                        if (parent != null && parent != rootVideoDir && parent.listFiles()?.isEmpty() == true) {
-                            parent.delete()
-                        }
+                    val f = videoToDelete!!
+                    val srt = File(f.parentFile, "${f.nameWithoutExtension}.srt")
+                    if (srt.exists()) srt.delete()
+                    if (f.delete()) {
+                        scope.launch { metadataDao?.deleteByPath(f.absolutePath) }
                         currentDir = File(currentDir.absolutePath)
                     }
                     videoToDelete = null
@@ -450,7 +397,7 @@ fun VideoListScreen(
         AlertDialog(
             onDismissRequest = { folderToDelete = null },
             title = { Text("מחיקת תיקייה") },
-            text = { Text("האם למחוק את '${folderToDelete?.name}' וכל תוכנה?") },
+            text = { Text("למחוק את '${folderToDelete?.name}' וכל תוכנה?") },
             confirmButton = {
                 Button(onClick = {
                     folderToDelete?.deleteRecursively()
@@ -469,14 +416,14 @@ fun VideoListScreen(
             text = { TextField(value = newFileName, onValueChange = { newFileName = it }, label = { Text("שם חדש") }) },
             confirmButton = {
                 Button(onClick = {
-                    val oldFile = videoToRename!!
-                    val renamedFile = File(oldFile.parentFile, newFileName)
-                    if (oldFile.renameTo(renamedFile)) {
+                    val old = videoToRename!!
+                    val renamed = File(old.parentFile, newFileName)
+                    if (old.renameTo(renamed)) {
                         scope.launch {
-                            val meta = metadataDao?.getMetadataForVideo(oldFile.absolutePath)
+                            val meta = metadataDao?.getMetadataForVideo(old.absolutePath)
                             if (meta != null) {
-                                metadataDao.deleteByPath(oldFile.absolutePath)
-                                metadataDao.insertMetadata(meta.copy(filePath = renamedFile.absolutePath))
+                                metadataDao.deleteByPath(old.absolutePath)
+                                metadataDao.insertMetadata(meta.copy(filePath = renamed.absolutePath))
                             }
                         }
                         currentDir = File(currentDir.absolutePath)
@@ -487,4 +434,42 @@ fun VideoListScreen(
             dismissButton = { TextButton(onClick = { videoToRename = null }) { Text("ביטול") } }
         )
     }
+}
+
+@Composable
+fun EditMetadataDialog(
+    initialMetadata: VideoMetadata,
+    onSave: (VideoMetadata) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var title by remember { mutableStateOf(initialMetadata.title ?: "") }
+    var description by remember { mutableStateOf(initialMetadata.description ?: "") }
+    var season by remember { mutableStateOf(initialMetadata.season?.toString() ?: "") }
+    var episode by remember { mutableStateOf(initialMetadata.episode?.toString() ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("ערוך פרטי סרטון") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextField(value = title, onValueChange = { title = it }, label = { Text("כותרת") }, modifier = Modifier.fillMaxWidth())
+                TextField(value = description, onValueChange = { description = it }, label = { Text("תיאור") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextField(value = season, onValueChange = { season = it }, label = { Text("עונה") }, modifier = Modifier.weight(1f))
+                    TextField(value = episode, onValueChange = { episode = it }, label = { Text("פרק") }, modifier = Modifier.weight(1f))
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onSave(initialMetadata.copy(
+                    title = title,
+                    description = description,
+                    season = season.toIntOrNull(),
+                    episode = episode.toIntOrNull()
+                ))
+            }) { Text("שמור") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("ביטול") } }
+    )
 }
