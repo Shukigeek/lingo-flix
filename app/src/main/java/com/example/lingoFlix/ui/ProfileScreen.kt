@@ -1,6 +1,7 @@
 package com.example.lingoFlix.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,9 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.lingoFlix.utils.LingoLog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,6 +30,7 @@ fun ProfileScreen(
     currentStreak: Int,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(userName) }
     var isEditing by remember { mutableStateOf(false) }
 
@@ -66,7 +70,10 @@ fun ProfileScreen(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1CB0F6)),
+                    .background(Color(0xFF1CB0F6))
+                    .clickable {
+                        Toast.makeText(context, "אופציה להעלאת תמונה תתווסף בקרוב!", Toast.LENGTH_SHORT).show()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(

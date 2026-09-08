@@ -84,28 +84,44 @@ fun DiscoveryScreen(userId: String) {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (query.isEmpty()) {
-            // Telegram Bots Section
-            Text("בוטים בטלגרם (למציאת תוכן)", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            // Content Sources Section
+            Text("מקורות תוכן חיצוניים", fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {
-                    TelegramBotCard(
-                        name = "Friends Robot",
-                        handle = "@FriendsRobot",
-                        icon = Icons.Default.SmartToy,
-                        color = Color(0xFF24A1DE)
+                    SourceCard(
+                        name = "YouTube",
+                        icon = Icons.Default.PlayCircle,
+                        color = Color(0xFFFF0000)
                     ) {
-                        launchTelegramBot(context, "FriendsRobot")
+                        launchExternalSearch(context, "https://www.youtube.com/results?search_query=")
                     }
                 }
                 item {
-                    TelegramBotCard(
-                        name = "חיפוש כללי",
-                        handle = "Search",
-                        icon = Icons.Default.Search,
-                        color = Color(0xFFE91E63)
+                    SourceCard(
+                        name = "Netflix",
+                        icon = Icons.Default.Movie,
+                        color = Color(0xFFE50914)
+                    ) {
+                        launchExternalSearch(context, "https://www.netflix.com/search?q=")
+                    }
+                }
+                item {
+                    SourceCard(
+                        name = "Telegram",
+                        icon = Icons.Default.Send,
+                        color = Color(0xFF24A1DE)
                     ) {
                         launchTelegramSearch(context, "")
+                    }
+                }
+                item {
+                    SourceCard(
+                        name = "Torrent",
+                        icon = Icons.Default.FileDownload,
+                        color = Color(0xFF4CAF50)
+                    ) {
+                        launchExternalSearch(context, "https://1337x.to/search/")
                     }
                 }
             }
@@ -183,6 +199,40 @@ fun DiscoverySuccessState(results: List<SearchResult>, query: String, onItemSele
         LazyVerticalGrid(columns = GridCells.Fixed(2), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             items(results) { item -> DiscoveryCard(item) { onItemSelected(item) } }
         }
+    }
+}
+
+@Composable
+fun SourceCard(
+    name: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(140.dp).height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
+        }
+    }
+}
+
+private fun launchExternalSearch(context: android.content.Context, baseUrl: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(baseUrl))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "לא ניתן לפתוח את הקישור", Toast.LENGTH_SHORT).show()
     }
 }
 

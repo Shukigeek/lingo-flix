@@ -25,6 +25,8 @@ class MainViewModel : ViewModel() {
     
     var favoriteClips by mutableStateOf(setOf<String>())
     var linkedVideos by mutableStateOf(setOf<String>())
+    
+    var backgroundResId by mutableIntStateOf(0) // 0 means default/transparent
 
     fun toggleFavorite(clipId: String) {
         favoriteClips = if (favoriteClips.contains(clipId)) {
@@ -44,5 +46,9 @@ class MainViewModel : ViewModel() {
         if (navigationStack.size > 1) {
             navigationStack = navigationStack.dropLast(1)
         }
+    }
+
+    fun updateUserName(newName: String) {
+        currentUser = currentUser.copy(name = newName)
     }
 }

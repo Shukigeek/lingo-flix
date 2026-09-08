@@ -9,6 +9,9 @@ interface VideoMetadataDao {
     @Query("SELECT * FROM video_metadata")
     fun getAllMetadata(): Flow<List<VideoMetadata>>
 
+    @Query("SELECT * FROM video_metadata WHERE isLinked = 1")
+    suspend fun getLinkedMetadata(): List<VideoMetadata>
+
     @Query("SELECT * FROM video_metadata WHERE filePath = :path LIMIT 1")
     suspend fun getMetadataForVideo(path: String): VideoMetadata?
 

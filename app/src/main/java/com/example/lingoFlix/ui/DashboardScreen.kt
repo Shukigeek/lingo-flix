@@ -55,24 +55,7 @@ fun DashboardScreen(
     val userProgress = xpInCurrentLevel / 1000f
 
     Scaffold(
-        containerColor = Color.Transparent, 
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    try {
-                        LingoLog.d("DashboardScreen", "Upload video clicked")
-                        onUploadVideo()
-                    } catch (e: Exception) {
-                        LingoLog.e("DashboardScreen", "Error in onUploadVideo", e)
-                    }
-                },
-                containerColor = Color(0xFF58CC02), // DuoGreen
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Upload")
-            }
-        }
+        containerColor = Color.Transparent
     ) { padding ->
         Box(
             modifier = Modifier

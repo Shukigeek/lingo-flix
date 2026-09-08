@@ -185,3 +185,53 @@ fun XRayDialog(
         }
     )
 }
+
+@Composable
+fun WordDetailsDialog(
+    word: String,
+    sourceLang: String = "אנגלית",
+    onDismiss: () -> Unit,
+    onAddToLearning: (String, String) -> Unit
+) {
+    val context = LocalContext.current
+    var translation by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(word) {
+        val langCode = OfflineTranslator.mapLanguage(sourceLang)
+        translation = OfflineTranslator.translate(word, langCode)
+        isLoading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(word, style = MaterialTheme.typography.headlineMedium) },
+        text = {
+            Column {
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else {
+                    Text("תרגום: ${translation ?: "לא נמצא"}", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("תרצה להוסיף את המילה למחסן המילים שלך?", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    translation?.let { onAddToLearning(word, it) }
+                    onDismiss()
+                },
+                enabled = !isLoading && translation != null
+            ) {
+                Text("הוסף ללמידה")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ביטול")
+            }
+        }
+    )
+}
