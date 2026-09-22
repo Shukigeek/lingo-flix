@@ -1,71 +1,137 @@
 package com.example.lingoFlix.utils
 
 import android.content.Context
-import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import java.util.concurrent.TimeUnit
 
+/**
+ * Robust utility for generating subtitles using AI (Gemini or OpenAI Whisper).
+ */
 object SubtitleGenerator {
     private const val TAG = "SubtitleGenerator"
+    
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .build()
 
     suspend fun generateSubtitles(
         context: Context,
         videoFile: File,
         userId: String,
         onProgress: (String) -> Unit
-    ): Result<File> {
-        val apiKey = SecurityUtils.getUserApiKey(context, userId)
-        if (apiKey.isNullOrBlank()) {
-            return Result.failure(Exception("נא להזין API KEY בהגדרות"))
-        }
-
-        return try {
-            onProgress("מכין את הסרטון לעיבוד...")
-            val videoBytes = videoFile.readBytes()
-            
-            // Check file size. Direct upload might fail if > 20MB for some tiers, 
-            // but Gemini 1.5 handles large context. 
-            // For a "pro" feel, we should warn if it's too big.
-            if (videoBytes.size > 20 * 1024 * 1024) {
-                Log.w(TAG, "Video file is large: ${videoBytes.size / 1024 / 1024}MB")
+    ): Result<File> = withContext(Dispatchers.IO) {
+        try {
+            if (!videoFile.exists()) {
+                return@withContext Result.failure(Exception("קובץ הוידאו לא נמצא"))
             }
+
+            // Try OpenAI Whisper first (Higher Quality)
+            val openAiKey = SecurityUtils.getOpenAiApiKey(context, userId)
+            if (!openAiKey.isNullOrBlank()) {
+                LingoLog.i(TAG, "Using Whisper Pro for ${videoFile.name}")
+                return@withContext generateWithWhisper(context, videoFile, openAiKey, onProgress)
+            }
+
+            // Fallback to Gemini
+            val geminiKey = SecurityUtils.getUserApiKey(context, userId)
+            if (!geminiKey.isNullOrBlank()) {
+                LingoLog.i(TAG, "Using Gemini fallback for ${videoFile.name}")
+                return@withContext generateWithGemini(videoFile, geminiKey, onProgress)
+            }
+
+            Result.failure(Exception("נא להזין API KEY (OpenAI או Gemini) בהגדרות"))
+        } catch (e: Exception) {
+            LingoLog.e(TAG, "Critical failure in subtitle generation", e)
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun generateWithWhisper(
+        context: Context,
+        videoFile: File,
+        apiKey: String,
+        onProgress: (String) -> Unit
+    ): Result<File> {
+        return try {
+            onProgress("מחלץ אודיו לעיבוד מהיר...")
+            val audioFile = File(context.cacheDir, "temp_audio_${System.currentTimeMillis()}.m4a")
+            val extractionSuccess = AudioUtils.extractAudioFromVideo(videoFile, audioFile)
+            
+            val targetFile = if (extractionSuccess && audioFile.exists()) audioFile else videoFile
+            
+            onProgress("מייצר כתוביות (Whisper Pro)...")
+            
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("model", "whisper-1")
+                .addFormDataPart("response_format", "srt")
+                .addFormDataPart("file", targetFile.name, targetFile.asRequestBody("audio/mpeg".toMediaType()))
+                .build()
+
+            val request = Request.Builder()
+                .url("https://api.openai.org/v1/audio/transcriptions")
+                .header("Authorization", "Bearer $apiKey")
+                .post(requestBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val srtContent = response.body?.string() ?: ""
+
+            if (!response.isSuccessful || srtContent.isBlank()) {
+                throw Exception("Whisper API failed: ${response.message}")
+            }
+
+            if (targetFile != videoFile) targetFile.delete()
+
+            val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
+            srtFile.writeText(srtContent)
+            
+            Result.success(srtFile)
+        } catch (e: Exception) {
+            LingoLog.e(TAG, "Whisper generation failed", e)
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun generateWithGemini(
+        videoFile: File,
+        apiKey: String,
+        onProgress: (String) -> Unit
+    ): Result<File> {
+        return try {
+            onProgress("מייצר כתוביות (Gemini)...")
+            val videoBytes = videoFile.readBytes()
 
             val generativeModel = GenerativeModel(
                 modelName = "gemini-1.5-flash",
                 apiKey = apiKey
             )
 
-            onProgress("מחלץ כתוביות בעזרת AI (זה עשוי לקחת זמן)...")
-            
             val prompt = content {
                 blob("video/mp4", videoBytes)
-                text("""
-                    Analyze this video and transcribe the speech into a valid SRT subtitle file.
-                    - Use the original language of the video.
-                    - Ensure the timestamps are accurate (Format: 00:00:00,000 --> 00:00:00,000).
-                    - Output ONLY the raw SRT content. Do not include any explanations, markdown code blocks, or preamble.
-                    - If the video has music only or no speech, return an empty string.
-                """.trimIndent())
+                text("Analyze this video and transcribe speech into raw SRT format. Original language only. Timestamps must be precise.")
             }
 
             val response = generativeModel.generateContent(prompt)
             var srtContent = response.text?.trim() ?: ""
 
-            // Clean up common AI formatting artifacts
             if (srtContent.startsWith("```")) {
-                srtContent = srtContent.removeSurrounding("```srt", "```")
-                srtContent = srtContent.removeSurrounding("```", "```")
-                srtContent = srtContent.trim()
+                srtContent = srtContent.removeSurrounding("```srt", "```").removeSurrounding("```", "```").trim()
             }
 
-            if (srtContent.isBlank()) {
-                return Result.failure(Exception("ה-AI לא הצליח להפיק כתוביות (אולי אין דיבור בסרטון?)"))
-            }
-
-            // Simple validation: check if it contains --> 
             if (!srtContent.contains(" --> ")) {
-                return Result.failure(Exception("התגובה מה-AI לא נראית כמו קובץ כתוביות תקין"))
+                throw Exception("תגובת ה-AI לא נראית כמו קובץ כתוביות תקין")
             }
 
             val srtFile = File(videoFile.parentFile, "${videoFile.nameWithoutExtension}.srt")
@@ -73,7 +139,7 @@ object SubtitleGenerator {
             
             Result.success(srtFile)
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating subtitles", e)
+            LingoLog.e(TAG, "Gemini generation failed", e)
             Result.failure(e)
         }
     }

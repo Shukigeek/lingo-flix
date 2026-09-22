@@ -722,7 +722,7 @@ fun VideoPlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (playbackSpeed < 1.0f) Icons.Default.SlowMotionVideo else Icons.Default.PlayCircle, 
-                            colorDescription = "Playback Speed", 
+                            contentDescription = "Playback Speed", 
                             tint = Color.White
                         )
                     }

@@ -57,13 +57,12 @@ android {
     }
 }
 
-// Rename the output APK
-@Suppress("DEPRECATION")
-(extensions.getByName("android") as com.android.build.gradle.AppExtension).applicationVariants.all {
-    val variant = this
-    variant.outputs.all {
-        val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-        output.outputFileName = "LingoFlix_v${variant.versionName}.apk"
+// Rename the output APK (Modern API)
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("LingoFlix_v${variant.name}.apk")
+        }
     }
 }
 
