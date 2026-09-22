@@ -125,35 +125,42 @@ object FileUtils {
     }
 
     fun getVideoDuration(context: Context, file: File): String? {
+        if (!file.exists()) return null
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, Uri.fromFile(file))
             val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val timeInMillis = time?.toLong() ?: 0L
+            if (timeInMillis <= 0) return "0:00"
+            
             val hours = TimeUnit.MILLISECONDS.toHours(timeInMillis)
             val minutes = TimeUnit.MILLISECONDS.toMinutes(timeInMillis) % 60
             val seconds = TimeUnit.MILLISECONDS.toSeconds(timeInMillis) % 60
+            
             if (hours > 0) {
                 String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
             } else {
                 String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
             }
         } catch (e: Exception) {
+            LingoLog.w("FileUtils", "Could not get duration for ${file.name}: ${e.message}")
             null
         } finally {
-            retriever.release()
+            try { retriever.release() } catch (e: Exception) { /* ignore */ }
         }
     }
 
     fun getVideoThumbnail(context: Context, file: File): android.graphics.Bitmap? {
+        if (!file.exists()) return null
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, Uri.fromFile(file))
             retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) // 1 second in
         } catch (e: Exception) {
+            LingoLog.w("FileUtils", "Could not get thumbnail for ${file.name}: ${e.message}")
             null
         } finally {
-            retriever.release()
+            try { retriever.release() } catch (e: Exception) { /* ignore */ }
         }
     }
 

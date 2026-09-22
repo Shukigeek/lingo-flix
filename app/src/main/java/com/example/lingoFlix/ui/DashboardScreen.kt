@@ -269,6 +269,10 @@ fun DashboardScreen(
                             }
                         }
                     }
+
+                    item {
+                        ServerUpdateCard()
+                    }
                 }
             }
         }

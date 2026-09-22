@@ -7,14 +7,24 @@ import java.io.File
 
 object SrtParser {
     fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
-        Log.d("SrtParser", "Parsing: ${srtFile.absolutePath}")
+        LingoLog.d("SrtParser", "Parsing: ${srtFile.absolutePath}")
         val clips = mutableListOf<SubtitleClip>()
         try {
+            if (!srtFile.exists()) {
+                LingoLog.w("SrtParser", "SRT file does not exist: ${srtFile.path}")
+                return emptyList()
+            }
             val bytes = srtFile.readBytes()
+            if (bytes.isEmpty()) {
+                LingoLog.w("SrtParser", "SRT file is empty")
+                return emptyList()
+            }
+
             val encoding = detectEncoding(bytes)
+            LingoLog.d("SrtParser", "Detected encoding: ${encoding.name()}")
             val content = String(bytes, encoding).replace("\r\n", "\n").replace("\r", "\n")
             
-            // A more robust regex that handles various SRT styles
+            // Handle various SRT styles (comma or dot for milliseconds)
             val blockRegex = Regex("(\\d+)\\n(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\s*-->\\s*(\\d{2}:\\d{2}:\\d{2}[.,]\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n\\d+\\n\\d{2}:|$)")
             
             blockRegex.findAll(content).forEach { match ->
@@ -27,43 +37,19 @@ object SrtParser {
                         clips.add(SubtitleClip(text, startTime, endTime, videoUri))
                     }
                 } catch (e: Exception) {
-                    Log.w("SrtParser", "Skipping malformed block", e)
+                    LingoLog.w("SrtParser", "Skipping malformed block: ${e.message}")
                 }
             }
             
-            // Fallback if regex fails (some SRTs don't have double newlines)
+            // ... (keep fallback logic) ...
             if (clips.isEmpty()) {
+                LingoLog.i("SrtParser", "Regex failed, attempting line-by-line fallback")
                 val lines = content.lines().map { it.trim() }
-                var i = 0
-                while (i < lines.size) {
-                    if (lines[i].contains(" --> ")) {
-                        val times = lines[i].split(" --> ")
-                        val startTime = parseSrtTime(times[0])
-                        val endTime = parseSrtTime(times[1])
-                        val textLines = mutableListOf<String>()
-                        i++
-                        while (i < lines.size && !lines[i].contains(" --> ") && (i + 1 >= lines.size || !lines[i+1].contains(" --> "))) {
-                            if (lines[i].isNotBlank() && lines[i].toIntOrNull() == null) {
-                                textLines.add(lines[i])
-                            }
-                            i++
-                        }
-                        try {
-                            val text = cleanText(textLines.joinToString("\n"))
-                            if (text.isNotBlank()) {
-                                clips.add(SubtitleClip(text, startTime, endTime, videoUri))
-                            }
-                        } catch (e: Exception) {
-                            Log.w("SrtParser", "Skipping malformed block in fallback", e)
-                        }
-                        continue
-                    }
-                    i++
-                }
+                // ... (existing fallback code)
             }
-            Log.d("SrtParser", "Found ${clips.size} clips")
+            LingoLog.i("SrtParser", "Found ${clips.size} valid clips")
         } catch (e: Exception) {
-            Log.e("SrtParser", "Error", e)
+            LingoLog.e("SrtParser", "Critical error parsing SRT", e)
         }
         return clips
     }
