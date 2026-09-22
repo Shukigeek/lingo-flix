@@ -3,7 +3,8 @@ package com.example.lingoFlix.utils
 import android.util.Log
 
 /**
- * Robust logging utility for LingoFlix.
+ * Standardized logging utility for LingoFlix.
+ * Ensures consistent tag usage and levels.
  */
 object LingoLog {
     private const val TAG = "LingoFlix"
@@ -16,11 +17,15 @@ object LingoLog {
         Log.i(TAG, "[$className] $message")
     }
 
-    fun w(className: String, message: String, throwable: Throwable? = null) {
-        Log.w(TAG, "[$className] $message", throwable)
+    fun w(className: String, message: String) {
+        Log.w(TAG, "[$className] $message")
     }
 
     fun e(className: String, message: String, throwable: Throwable? = null) {
-        Log.e(TAG, "[$className] $message", throwable)
+        if (throwable != null) {
+            Log.e(TAG, "[$className] $message", throwable)
+        } else {
+            Log.e(TAG, "[$className] $message")
+        }
     }
 }
