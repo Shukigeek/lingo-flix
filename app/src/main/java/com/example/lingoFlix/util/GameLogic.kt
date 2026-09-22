@@ -1,63 +1,61 @@
 package com.example.lingoFlix.util
 
-import com.example.lingoFlix.model.Question
-import com.example.lingoFlix.model.SubtitleSegment
+import com.example.lingoFlix.model.SubtitleClip
+import com.example.lingoFlix.utils.LingoLog
 import kotlin.random.Random
 
 object GameLogic {
 
     enum class Difficulty {
-        EASY,   // Mask 30% of words
-        MEDIUM, // Mask 60% of words
-        HARD    // Mask 100% of words
+        EASY,   // Mask 1 word
+        MEDIUM, // Mask 40% of words
+        HARD    // Mask 70% of words
     }
 
-    fun generateQuestion(segment: SubtitleSegment, difficulty: Difficulty): Question {
-        val words = segment.text.split(" ").toMutableList()
-        val maskedWords = mutableListOf<String>()
+    data class QuizData(
+        val hiddenIndices: Set<Int>,
+        val words: List<String>
+    )
+
+    fun prepareQuiz(text: String, difficultyStr: String): QuizData {
+        if (text.isBlank()) return QuizData(emptySet(), emptyList())
         
-        val maskProbability = when (difficulty) {
-            Difficulty.EASY -> 0.3
-            Difficulty.MEDIUM -> 0.6
-            Difficulty.HARD -> 1.0
-        }
-
-        val resultWords = words.mapIndexed { index, word ->
-            // Don't mask very short words (like "a", "y") unless it's HARD
-            if (difficulty != Difficulty.HARD && word.length <= 2) {
-                word
-            } else if (Random.nextDouble() < maskProbability) {
-                maskedWords.add(word.replace(Regex("[^a-zA-Z\u00C0-\u017F]"), "")) // Keep only letters for the target
-                "____"
-            } else {
-                word
+        return try {
+            val words = text.split(Regex("(?<=\\s)|(?=\\s)|(?<=[.,!?;])|(?=[.,!?;])")).filter { it.isNotBlank() }
+            val validIndices = words.indices.filter { words[it].length > 1 && words[it].any { c -> c.isLetter() } }
+            
+            val difficulty = when(difficultyStr) {
+                "קשה" -> Difficulty.HARD
+                "בינוני" -> Difficulty.MEDIUM
+                else -> Difficulty.EASY
             }
-        }
 
-        return Question(
-            fullText = segment.text,
-            maskedText = resultWords.joinToString(" "),
-            targetWords = maskedWords
-        )
+            var hiddenIndices = emptySet<Int>()
+            if (validIndices.isNotEmpty()) {
+                val countToHide = when (difficulty) {
+                    Difficulty.EASY -> 1
+                    Difficulty.MEDIUM -> (validIndices.size * 0.4).toInt().coerceAtLeast(1)
+                    Difficulty.HARD -> (validIndices.size * 0.7).toInt().coerceAtLeast(1)
+                }
+                hiddenIndices = validIndices.shuffled().take(countToHide).toSet()
+            }
+            QuizData(hiddenIndices, words)
+        } catch (e: Exception) {
+            LingoLog.e("GameLogic", "Error preparing quiz", e)
+            QuizData(emptySet(), text.split(" "))
+        }
     }
     
-    fun checkAnswer(userAnswer: String, originalText: String): Int {
-        // Simple scoring: 0-100 based on similarity
-        // This is a placeholder for a better fuzzy match
-        val cleanUser = userAnswer.trim().lowercase()
-        val cleanOriginal = originalText.trim().lowercase()
+    fun checkAnswer(userInput: String, words: List<String>, hiddenIndices: Set<Int>): Boolean {
+        if (hiddenIndices.isEmpty()) return true
         
-        if (cleanUser == cleanOriginal) return 100
+        val userWords = userInput.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        val targetWords = hiddenIndices.map { words[it].filter { c -> c.isLetterOrDigit() }.lowercase() }
         
-        // Basic word-by-word comparison
-        val userWords = cleanUser.split(" ")
-        val originalWords = cleanOriginal.split(" ")
+        if (userWords.size != targetWords.size) return false
         
-        var matches = 0
-        originalWords.forEach { word ->
-            if (userWords.contains(word)) matches++
+        return targetWords.indices.all { i ->
+            userWords[i].filter { c -> c.isLetterOrDigit() }.lowercase() == targetWords[i]
         }
-        
-        return ((matches.toFloat() / originalWords.size) * 100).toInt()
     }
 }
