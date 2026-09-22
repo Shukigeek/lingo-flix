@@ -40,6 +40,7 @@ object VideoPlayerLogic {
     }
 
     fun prepareQuiz(text: String, difficulty: String, quizType: String): Pair<Set<Int>, List<String>> {
+        if (text.isBlank()) return Pair(emptySet(), emptyList())
         return try {
             val words = text.split(Regex("(?<=\\s)|(?=\\s)|(?<=[.,!?;])|(?=[.,!?;])")).filter { it.isNotBlank() }
             val validIndices = words.indices.filter { words[it].length > 1 && words[it].any { c -> c.isLetter() } }
@@ -58,7 +59,7 @@ object VideoPlayerLogic {
             }
             Pair(hiddenIndices, words)
         } catch (e: Exception) {
-            LingoLog.e("VideoPlayerLogic", "Error preparing quiz", e)
+            LingoLog.e("VideoPlayerLogic", "Error preparing quiz for text: $text", e)
             Pair(emptySet(), text.split(" "))
         }
     }
