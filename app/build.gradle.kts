@@ -15,8 +15,8 @@ android {
         applicationId = "com.example.lingoFlix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.0"
+        versionCode = 6
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,64 +54,17 @@ android {
     
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 
-// Name the output APK (AGP 9 removed the legacy applicationVariants API)
-base {
-    archivesName.set("LingoFlix_v${android.defaultConfig.versionName}")
-}
-
-// --- Robust Code Quality Build Task ---
-tasks.register("checkCodeQuality") {
-    group = "verification"
-    description = "Enforces strict project standards: 300-line rule, error handling, and logging."
-    
-    doLast {
-        val srcDir = file("src/main/java/com/example/lingoFlix")
-        val errors = mutableListOf<String>()
-        val warnings = mutableListOf<String>()
-        
-        srcDir.walkTopDown().filter { it.extension == "kt" }.forEach { file ->
-            val lines = file.readLines()
-            val fileName = file.name
-            
-            // 1. Line Count Rule (Hard Error)
-            if (lines.size > 350) {
-                errors.add("$fileName: Too long (${lines.size} lines). Must be under 350.")
-            }
-            
-            // 2. Logging Rule (Warning)
-            if (lines.size > 50 && !lines.any { it.contains("LingoLog") } && !fileName.contains("ViewModel")) {
-                warnings.add("$fileName: Should use LingoLog for consistency.")
-            }
-
-            // 3. Error Handling (Warning)
-            if (lines.size > 100 && !lines.any { it.contains("try {") }) {
-                warnings.add("$fileName: No try-catch blocks found in a large file.")
-            }
-            
-            // 4. Hardcoded Strings (Warning - simple check)
-            if (lines.any { it.contains("Toast.makeText") && it.contains("\"") && !it.contains("R.string") }) {
-                warnings.add("$fileName: Found hardcoded string in Toast. Use resources.")
-            }
+// Rename the output APK (Modern API)
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("LingoFlix_v${variant.name}.apk")
         }
-        
-        println("\n--- Code Quality Report ---")
-        warnings.forEach { println("[WARN] $it") }
-        if (errors.isNotEmpty()) {
-            errors.forEach { System.err.println("[FAIL] $it") }
-            throw GradleException("Code quality check failed with ${errors.size} errors.")
-        }
-        println("Code Quality passed with ${warnings.size} warnings.")
     }
 }
-
-tasks.named("preBuild") {
-    dependsOn("checkCodeQuality")
-}
-// --------------------------------------
 
 kotlin {
     jvmToolchain(11)
@@ -132,8 +85,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -142,19 +93,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
-    implementation(libs.androidx.media3.exoplayer.hls)
-    implementation(libs.androidx.media3.exoplayer.dash)
-
-    // Networking (LingoFlix backend)
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.gson)
-    implementation(libs.retrofit.converter.scalars)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
-    implementation(libs.gson)
-
-    // YouTube IFrame player (subtitles/quiz overlay on top of YouTube)
-    implementation(libs.youtube.player)
 
     // ML Kit & Offline features
     implementation(libs.google.mlkit.translate)
@@ -171,7 +109,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
 
     // Room Database
-    val room_version = "2.8.1"
+    val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
