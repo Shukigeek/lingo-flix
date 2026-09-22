@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      LINGO_SECRET_KEY: ${LINGO_SECRET_KEY:-please-change-me}
+      LINGO_ANTHROPIC_API_KEY: ${LINGO_ANTHROPIC_API_KEY:-}
+      LINGO_GEMINI_API_KEY: ${LINGO_GEMINI_API_KEY:-}
+      LINGO_OPENSUBTITLES_API_KEY: ${LINGO_OPENSUBTITLES_API_KEY:-}
+    volumes:
+      - lingo_data:/data
+    restart: unless-stopped
+
+volumes:
+  lingo_data:

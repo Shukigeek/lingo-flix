@@ -47,6 +47,21 @@ class VideoPlayerLogicTest {
     }
 
     @Test
+    fun `prepareQuiz with empty text should return empty results`() {
+        val (hiddenIndices, words) = VideoPlayerLogic.prepareQuiz("", "קל", "typing")
+        assertTrue(hiddenIndices.isEmpty())
+        assertTrue(words.isEmpty())
+    }
+
+    @Test
+    fun `prepareQuiz with text containing only symbols should not hide anything`() {
+        val text = "!!! ??? ..."
+        val (hiddenIndices, words) = VideoPlayerLogic.prepareQuiz(text, "קל", "typing")
+        assertTrue(hiddenIndices.isEmpty())
+        assertEquals(3, words.size)
+    }
+
+    @Test
     fun `getPreferredAudioLang returns correct codes`() {
         assertEquals("he", VideoPlayerLogic.getPreferredAudioLang("עברית"))
         assertEquals("en", VideoPlayerLogic.getPreferredAudioLang("אנגלית"))
