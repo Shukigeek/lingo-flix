@@ -2,7 +2,6 @@ package com.example.lingoFlix.util
 
 import com.example.lingoFlix.model.Question
 import com.example.lingoFlix.model.SubtitleSegment
-import com.example.lingoFlix.utils.LingoLog
 import kotlin.random.Random
 
 object GameLogic {
@@ -14,37 +13,32 @@ object GameLogic {
     }
 
     fun generateQuestion(segment: SubtitleSegment, difficulty: Difficulty): Question {
-        return try {
-            val words = segment.text.split(" ").toMutableList()
-            val maskedWords = mutableListOf<String>()
-            
-            val maskProbability = when (difficulty) {
-                Difficulty.EASY -> 0.3
-                Difficulty.MEDIUM -> 0.6
-                Difficulty.HARD -> 1.0
-            }
-
-            val resultWords = words.mapIndexed { index, word ->
-                // Don't mask very short words (like "a", "y") unless it's HARD
-                if (difficulty != Difficulty.HARD && word.length <= 2) {
-                    word
-                } else if (Random.nextDouble() < maskProbability) {
-                    maskedWords.add(word.replace(Regex("[^a-zA-Z\u00C0-\u017F]"), "")) // Keep only letters for the target
-                    "____"
-                } else {
-                    word
-                }
-            }
-
-            Question(
-                fullText = segment.text,
-                maskedText = resultWords.joinToString(" "),
-                targetWords = maskedWords
-            )
-        } catch (e: Exception) {
-            LingoLog.e("GameLogic", "Error generating question", e)
-            Question(segment.text, segment.text, emptyList())
+        val words = segment.text.split(" ").toMutableList()
+        val maskedWords = mutableListOf<String>()
+        
+        val maskProbability = when (difficulty) {
+            Difficulty.EASY -> 0.3
+            Difficulty.MEDIUM -> 0.6
+            Difficulty.HARD -> 1.0
         }
+
+        val resultWords = words.mapIndexed { index, word ->
+            // Don't mask very short words (like "a", "y") unless it's HARD
+            if (difficulty != Difficulty.HARD && word.length <= 2) {
+                word
+            } else if (Random.nextDouble() < maskProbability) {
+                maskedWords.add(word.replace(Regex("[^a-zA-Z\u00C0-\u017F]"), "")) // Keep only letters for the target
+                "____"
+            } else {
+                word
+            }
+        }
+
+        return Question(
+            fullText = segment.text,
+            maskedText = resultWords.joinToString(" "),
+            targetWords = maskedWords
+        )
     }
     
     fun checkAnswer(userAnswer: String, originalText: String): Int {

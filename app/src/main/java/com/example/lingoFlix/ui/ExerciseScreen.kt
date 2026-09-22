@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.lingoFlix.utils.LingoLog
 import com.example.lingoFlix.ui.components.*
 
 @Composable
@@ -50,10 +49,7 @@ fun ExerciseScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { 
-                    LingoLog.d("ExerciseScreen", "User clicked close")
-                    onBack(false) 
-                }) {
+                IconButton(onClick = { onBack(false) }) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
                 }
                 
@@ -97,16 +93,12 @@ fun ExerciseScreen(
                     isVisible = feedbackState != null,
                     currentStreak = viewModel.streak.value,
                     onNext = {
-                        try {
-                            feedbackState = null
-                            selectedWords.clear()
-                            if (!isGameOver) {
-                                viewModel.nextQuestion()
-                            } else {
-                                 onBack(false)
-                            }
-                        } catch (e: Exception) {
-                            LingoLog.e("ExerciseScreen", "Error in onNext", e)
+                        feedbackState = null
+                        selectedWords.clear()
+                        if (!isGameOver) {
+                            viewModel.nextQuestion()
+                        } else {
+                             onBack(false)
                         }
                     }
                 )

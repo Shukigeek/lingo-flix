@@ -12,27 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import com.example.lingoFlix.utils.LingoLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    currentGeminiApiKey: String,
-    currentTmdbApiKey: String,
-    currentAnthropicApiKey: String = "",
-    currentOpenAiApiKey: String = "",
-    onSaveKeys: (String, String, String, String) -> Unit,
+    currentApiKey: String,
+    onSaveApiKey: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    var geminiApiKey by remember { mutableStateOf(currentGeminiApiKey) }
-    var tmdbApiKey by remember { mutableStateOf(currentTmdbApiKey) }
-    var anthropicApiKey by remember { mutableStateOf(currentAnthropicApiKey) }
-    var openAiApiKey by remember { mutableStateOf(currentOpenAiApiKey) }
-
-    var selectedTheme by remember { mutableIntStateOf(0) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var apiKey by remember { mutableStateOf(currentApiKey) }
 
     Scaffold(
         topBar = {
@@ -53,82 +42,11 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "הגדרות API",
+                text = "הגדרות אפליקציה",
                 style = MaterialTheme.typography.titleLarge
             )
             
             Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = geminiApiKey,
-                onValueChange = { geminiApiKey = it },
-                label = { Text("Gemini API Key") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = tmdbApiKey,
-                onValueChange = { tmdbApiKey = it },
-                label = { Text("TMDB API Key") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = anthropicApiKey,
-                onValueChange = { anthropicApiKey = it },
-                label = { Text("Anthropic API Key") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = openAiApiKey,
-                onValueChange = { openAiApiKey = it },
-                label = { Text("OpenAI API Key (for Pro Subtitles)") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.VpnKey, null) }
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Text(
-                text = "ערכת נושא (רקע)",
-                style = MaterialTheme.typography.titleLarge
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("ברירת מחדל", "כחול שמיים", "ירוק טבע").forEachIndexed { index, name ->
-                    FilterChip(
-                        selected = selectedTheme == index,
-                        onClick = { selectedTheme = index },
-                        label = { Text(name) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Button(
-                onClick = {
-                    onSaveKeys(geminiApiKey, tmdbApiKey, anthropicApiKey, openAiApiKey)
-                    Toast.makeText(context, "ההגדרות נשמרו!", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("שמור הגדרות")
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
             
             Card(
                 colors = CardDefaults.cardColors(
@@ -139,23 +57,22 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Info, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("מידע על המפתחות", style = MaterialTheme.typography.titleMedium)
+                        Text("מידע על הניתוח", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "1. Gemini API: משמש לייצור כתוביות בסיסי.\n" +
-                        "2. OpenAI API: משמש לייצור כתוביות Pro (Whisper) ברמה הגבוהה ביותר.\n" +
-                        "3. TMDB API: משמש לחיפוש מידע על סרטים.\n\n" +
-                        "ניתן להשיג את המפתחות באתרים של OpenAI ו-Google AI Studio.",
+                        "האפליקציה משתמשת בטכנולוגיית ML Kit של גוגל לניתוח מילים אופליין.\n" +
+                        "אין צורך בחיבור לאינטרנט או במפתחות API חיצוניים.\n" +
+                        "הכל נשמר ומעובד מקומית על המכשיר שלך.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "גרסה: 1.1.0",
+                text = "גרסה: 1.0.0 (Offline Mode)",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

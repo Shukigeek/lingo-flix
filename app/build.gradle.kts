@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
-    // id("com.google.gms.google-services") // Removed because google-services.json is missing
 }
 
 android {
@@ -16,8 +15,8 @@ android {
         applicationId = "com.example.lingoFlix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.4"
+        versionCode = 10
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -55,61 +54,64 @@ android {
     
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
-// Rename the output APK
-androidComponents {
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            output.outputFileName.set(output.versionName.map { "LingoFlix_v$it.apk" })
-        }
-    }
+// Name the output APK (AGP 9 removed the legacy applicationVariants API)
+base {
+    archivesName.set("LingoFlix_v${android.defaultConfig.versionName}")
 }
 
-// --- Code Quality Build Task ---
+// --- Robust Code Quality Build Task ---
 tasks.register("checkCodeQuality") {
     group = "verification"
-    description = "Checks for 300-line rule and basic code standards."
+    description = "Enforces strict project standards: 300-line rule, error handling, and logging."
     
     doLast {
         val srcDir = file("src/main/java/com/example/lingoFlix")
-        var failed = false
-        val report = StringBuilder()
+        val errors = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
         
         srcDir.walkTopDown().filter { it.extension == "kt" }.forEach { file ->
             val lines = file.readLines()
+            val fileName = file.name
             
-            // 1. Check line count
-            if (lines.size > 500) {
-                report.append("[FAIL] ${file.name} is too long (${lines.size} lines). Limit is 500.\n")
-                failed = true
+            // 1. Line Count Rule (Hard Error)
+            if (lines.size > 350) {
+                errors.add("$fileName: Too long (${lines.size} lines). Must be under 350.")
             }
             
-            // 2. Check for try-catch in non-trivial files (simple heuristic)
-            if (lines.size > 50 && !lines.any { it.contains("try {") || it.contains("try{") }) {
-                report.append("[WARN] ${file.name} might be missing try-catch blocks.\n")
+            // 2. Logging Rule (Warning)
+            if (lines.size > 50 && !lines.any { it.contains("LingoLog") } && !fileName.contains("ViewModel")) {
+                warnings.add("$fileName: Should use LingoLog for consistency.")
             }
 
-            // 3. Check for LingoLog usage
-            if (lines.size > 50 && !lines.any { it.contains("LingoLog") }) {
-                report.append("[WARN] ${file.name} should use LingoLog for consistency.\n")
+            // 3. Error Handling (Warning)
+            if (lines.size > 100 && !lines.any { it.contains("try {") }) {
+                warnings.add("$fileName: No try-catch blocks found in a large file.")
+            }
+            
+            // 4. Hardcoded Strings (Warning - simple check)
+            if (lines.any { it.contains("Toast.makeText") && it.contains("\"") && !it.contains("R.string") }) {
+                warnings.add("$fileName: Found hardcoded string in Toast. Use resources.")
             }
         }
         
-        if (failed) {
-            throw GradleException("Code Quality checks failed:\n$report")
-        } else {
-            println("Code Quality checks passed!\n$report")
+        println("\n--- Code Quality Report ---")
+        warnings.forEach { println("[WARN] $it") }
+        if (errors.isNotEmpty()) {
+            errors.forEach { System.err.println("[FAIL] $it") }
+            throw GradleException("Code quality check failed with ${errors.size} errors.")
         }
+        println("Code Quality passed with ${warnings.size} warnings.")
     }
 }
 
-// Hook into the build process
 tasks.named("preBuild") {
     dependsOn("checkCodeQuality")
 }
-// -------------------------------
+// --------------------------------------
 
 kotlin {
     jvmToolchain(11)
@@ -128,12 +130,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(libs.junit)
-    testImplementation(libs.mockito.core)
-    testImplementation(libs.mockito.kotlin)
-    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -142,9 +140,19 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
-    implementation(libs.coil.compose)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.exoplayer.dash)
+
+    // Networking (LingoFlix backend)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.retrofit.converter.scalars)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson)
+
+    // YouTube IFrame player (subtitles/quiz overlay on top of YouTube)
+    implementation(libs.youtube.player)
 
     // ML Kit & Offline features
     implementation(libs.google.mlkit.translate)
@@ -161,17 +169,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
 
     // Room Database
-    val room_version = "2.8.4"
+    val room_version = "2.8.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
-
-    // Firebase - Commented out because google-services.json is missing
-    // implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
-    // implementation("com.google.firebase:firebase-firestore-ktx")
-    // implementation("com.google.firebase:firebase-analytics-ktx")
 }
-
-
-
-

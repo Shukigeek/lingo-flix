@@ -1,7 +1,5 @@
 package com.example.lingoFlix.model
 
-import com.example.lingoFlix.utils.LingoLog
-
 /**
  * Represent a single subtitle entry from an SRT file.
  */
@@ -37,7 +35,6 @@ object SrtParser {
                         items.add(SubtitleItem(index, startMs, endMs, text))
                     }
                 } catch (e: Exception) {
-                    LingoLog.e("SrtParser", "Failed to parse subtitle block: $block", e)
                     // Skip malformed blocks
                     continue
                 }

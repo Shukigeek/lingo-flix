@@ -17,8 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-import com.example.lingoFlix.utils.LingoLog
-
 // Duolingo Colors
 val DuoGreen = Color(0xFF58CC02)
 val DuoDarkGreen = Color(0xFF46A302)
@@ -34,8 +32,7 @@ fun DuoButton(
     modifier: Modifier = Modifier,
     color: Color = DuoGreen,
     darkColor: Color = DuoDarkGreen,
-    enabled: Boolean = true,
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
+    enabled: Boolean = true
 ) {
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -50,10 +47,7 @@ fun DuoButton(
                 interactionSource = interactionSource,
                 indication = null,
                 enabled = enabled,
-                onClick = {
-                    LingoLog.d("DuoButton", "Button clicked: $text")
-                    onClick()
-                }
+                onClick = onClick
             )
     ) {
         // Shadow (Darker part)
@@ -73,28 +67,13 @@ fun DuoButton(
                 .background(if (enabled) color else DuoGray, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                if (leadingIcon != null) {
-                    Icon(
-                        imageVector = leadingIcon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Text(
-                    text = text.uppercase(),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    fontSize = 18.sp
-                )
-            }
+            Text(
+                text = text.uppercase(),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                fontSize = 18.sp
+            )
         }
     }
 }
@@ -130,7 +109,6 @@ fun FeedbackBanner(
     // Sound effect
     LaunchedEffect(isVisible) {
         if (isVisible) {
-            LingoLog.i("FeedbackBanner", "Showing feedback: isCorrect=$isCorrect")
             val soundUri = if (isCorrect) {
                 android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
             } else {
@@ -140,9 +118,7 @@ fun FeedbackBanner(
                 val mediaPlayer = android.media.MediaPlayer.create(context, soundUri)
                 mediaPlayer.start()
                 mediaPlayer.setOnCompletionListener { it.release() }
-            } catch (e: Exception) {
-                LingoLog.e("FeedbackBanner", "Error playing sound", e)
-            }
+            } catch (e: Exception) {}
         }
     }
 

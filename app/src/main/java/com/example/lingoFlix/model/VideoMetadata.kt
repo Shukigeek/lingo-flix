@@ -13,6 +13,5 @@ data class VideoMetadata(
     val thumbnailPath: String? = null,
     val lastWatchedMs: Long = 0,
     val isFavorite: Boolean = false,
-    val isLinked: Boolean = false, // Added to track random pool
     val tags: String? = null // Comma separated tags
 )

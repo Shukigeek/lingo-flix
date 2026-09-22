@@ -5,7 +5,6 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
 import kotlinx.coroutines.tasks.await
-import com.example.lingoFlix.utils.LingoLog
 
 object OfflineTranslator {
     
@@ -39,7 +38,6 @@ object OfflineTranslator {
             translator.downloadModelIfNeeded(conditions).await()
             translator.translate(text).await()
         } catch (e: Exception) {
-            LingoLog.e("OfflineTranslator", "Translation failed", e)
             "שגיאה: ${e.localizedMessage}"
         } finally {
             translator.close()

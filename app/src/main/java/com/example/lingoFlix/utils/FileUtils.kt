@@ -6,10 +6,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import com.example.lingoFlix.utils.LingoLog
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -18,7 +15,6 @@ import java.util.concurrent.TimeUnit
 
 object FileUtils {
     fun getFileName(context: Context, uri: Uri): String? {
-        LingoLog.d("FileUtils", "getFileName for: $uri")
         if (uri.scheme == "file") {
             return uri.lastPathSegment
         }
@@ -29,32 +25,52 @@ object FileUtils {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1) {
-                        name = it.getString(nameIndex)
-                        LingoLog.d("FileUtils", "Found DISPLAY_NAME: $name")
+                        val displayName = it.getString(nameIndex)
+                        if (!displayName.isNullOrBlank()) {
+                            name = displayName
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-            LingoLog.e("FileUtils", "Error getting file name from cursor", e)
+            Log.e("FileUtils", "Error getting file name from cursor", e)
         }
 
-        if (name == null) {
-            name = uri.lastPathSegment
-            LingoLog.d("FileUtils", "Fallback to lastPathSegment: $name")
+        // If name is still null or just a number (common for some providers), try to get it from URI path
+        if (name == null || name!!.matches(Regex("\\d+"))) {
+            val path = uri.path
+            if (path != null) {
+                val lastSegment = path.substringAfterLast("/")
+                if (lastSegment.isNotBlank() && lastSegment.contains(".")) {
+                    name = lastSegment
+                }
+            }
         }
         
+        // Final fallback: if it's still null or just a number, use the last path segment if it looks like a name
+        val finalName = name
+        if (finalName == null || finalName.matches(Regex("\\d+"))) {
+            uri.lastPathSegment?.let { 
+                if (it.isNotBlank() && !it.matches(Regex("\\d+"))) {
+                    name = it
+                }
+            }
+        }
+
         return name
     }
 
-    fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null): File? {
-        LingoLog.d("FileUtils", "saveVideoToInternalStorage: $fileName to $targetDir")
+    fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String): File? {
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val videoDir = targetDir ?: File(context.filesDir, "videos")
+            val videoDir = File(context.filesDir, "videos")
             
-            if (!videoDir.exists()) videoDir.mkdirs()
+            // Create a subfolder based on the video name (without extension)
+            val baseName = if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
+            val targetDir = File(videoDir, baseName)
+            if (!targetDir.exists()) targetDir.mkdirs()
             
-            val targetFile = File(videoDir, fileName)
+            val targetFile = File(targetDir, fileName)
             val outputStream = FileOutputStream(targetFile)
             
             inputStream?.use { input ->
@@ -62,43 +78,28 @@ object FileUtils {
                     input.copyTo(output)
                 }
             }
-
-            // Create initial metadata for the database
-            val metadata = createInitialMetadata(targetFile)
-            LingoLog.d("FileUtils", "Metadata created: title='${metadata.title}', filePath='${metadata.filePath}'")
-            val database = com.example.lingoFlix.data.AppDatabase.getDatabase(context)
-            CoroutineScope(Dispatchers.IO).launch {
-                database.videoMetadataDao().insertMetadata(metadata)
-                LingoLog.d("FileUtils", "Metadata inserted into DB for: ${metadata.filePath}")
-            }
-
             targetFile
         } catch (e: Exception) {
-            LingoLog.e("FileUtils", "Error saving video", e)
+            Log.e("FileUtils", "Error saving video", e)
             null
         }
     }
 
-    private fun createInitialMetadata(file: File): com.example.lingoFlix.model.VideoMetadata {
-        val name = file.name
-        // Try to parse Season/Episode (e.g., S01E05)
-        val regex = Regex("[sS](\\d{1,2})[eE](\\d{1,2})")
-        val match = regex.find(name)
-        
-        return com.example.lingoFlix.model.VideoMetadata(
-            filePath = file.absolutePath,
-            title = name,
-            season = match?.groupValues?.get(1)?.toIntOrNull(),
-            episode = match?.groupValues?.get(2)?.toIntOrNull()
-        )
-    }
-
-    fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, targetDir: File? = null, videoName: String? = null): File? {
+    fun saveSubtitleToInternalStorage(context: Context, uri: Uri, fileName: String, videoName: String? = null): File? {
         return try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val subDir = targetDir ?: File(context.filesDir, "videos")
+            val videoDir = File(context.filesDir, "videos")
             
-            if (!subDir.exists()) subDir.mkdirs()
+            // Determine the subfolder. If videoName is provided, use it. 
+            // Otherwise use the subtitle's name.
+            val baseName = if (videoName != null) {
+                if (videoName.contains(".")) videoName.substringBeforeLast(".") else videoName
+            } else {
+                if (fileName.contains(".")) fileName.substringBeforeLast(".") else fileName
+            }
+            
+            val targetDir = File(videoDir, baseName)
+            if (!targetDir.exists()) targetDir.mkdirs()
             
             // If linked to a video, we might want to rename the SRT to match the video name exactly
             val targetFileName = if (videoName != null) {
@@ -108,7 +109,7 @@ object FileUtils {
                 fileName
             }
 
-            val targetFile = File(subDir, targetFileName)
+            val targetFile = File(targetDir, targetFileName)
             val outputStream = FileOutputStream(targetFile)
             
             inputStream?.use { input ->
@@ -118,7 +119,7 @@ object FileUtils {
             }
             targetFile
         } catch (e: Exception) {
-            LingoLog.e("FileUtils", "Error saving subtitle", e)
+            Log.e("FileUtils", "Error saving subtitle", e)
             null
         }
     }

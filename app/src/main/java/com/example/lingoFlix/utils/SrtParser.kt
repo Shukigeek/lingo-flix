@@ -1,12 +1,13 @@
 package com.example.lingoFlix.utils
 
 import android.net.Uri
+import android.util.Log
 import com.example.lingoFlix.model.SubtitleClip
 import java.io.File
 
 object SrtParser {
     fun parseSrtFile(srtFile: File, videoUri: Uri): List<SubtitleClip> {
-        LingoLog.d("SrtParser", "Parsing: ${srtFile.absolutePath}")
+        Log.d("SrtParser", "Parsing: ${srtFile.absolutePath}")
         val clips = mutableListOf<SubtitleClip>()
         try {
             val bytes = srtFile.readBytes()
@@ -26,7 +27,7 @@ object SrtParser {
                         clips.add(SubtitleClip(text, startTime, endTime, videoUri))
                     }
                 } catch (e: Exception) {
-                    LingoLog.w("SrtParser", "Skipping malformed block")
+                    Log.w("SrtParser", "Skipping malformed block", e)
                 }
             }
             
@@ -53,16 +54,16 @@ object SrtParser {
                                 clips.add(SubtitleClip(text, startTime, endTime, videoUri))
                             }
                         } catch (e: Exception) {
-                            LingoLog.w("SrtParser", "Skipping malformed block in fallback")
+                            Log.w("SrtParser", "Skipping malformed block in fallback", e)
                         }
                         continue
                     }
                     i++
                 }
             }
-            LingoLog.d("SrtParser", "Found ${clips.size} clips")
+            Log.d("SrtParser", "Found ${clips.size} clips")
         } catch (e: Exception) {
-            LingoLog.e("SrtParser", "Error parsing SRT", e)
+            Log.e("SrtParser", "Error", e)
         }
         return clips
     }
