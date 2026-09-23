@@ -1,6 +1,6 @@
 # 🎬 LingoFlix Project Knowledge Base
 
-This document serves as a persistent guide for AI assistants to understand the architecture, UI/UX flow, and critical logic of the LingoFlix project.
+This document serves as a persistent guide for AI assistants and developers to understand the architecture, UI/UX flow, and critical logic of the LingoFlix project.
 
 ## 🏛️ Project Architecture
 - **Tech Stack**: Kotlin, Jetpack Compose, Media3 (ExoPlayer), Room (planned/partially integrated), Coroutines.

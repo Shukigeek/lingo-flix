@@ -1,6 +1,6 @@
-# LingoFlix Automated Release Script (Improved)
+# LingoFlix Automated Release Script (Windows PowerShell)
 
-# 0. Check for Keystore (Now checking in app/ folder where Gradle expects it)
+# 0. Check for Keystore
 $keystorePath = "app/release.keystore"
 if (-not (Test-Path $keystorePath)) {
     Write-Error "ERROR: release.keystore not found at $keystorePath!"
@@ -82,16 +82,16 @@ if ($LASTEXITCODE -ne 0) {
     exit
 }
 
-# 6. Update index.html
-Write-Host "Updating index.html..." -ForegroundColor Cyan
-$htmlFile = "index.html"
-$htmlContent = Get-Content $htmlFile -Raw
-$newDownloadUrl = "https://github.com/Shukigeek/lingo-flix/releases/download/v$newVersion/app-release.apk"
-
-# Robust replacement for the specific download button link
-$htmlContent = $htmlContent -replace 'https://github.com/Shukigeek/lingo-flix/releases/download/.*?/app-release\.apk"', "$newDownloadUrl`""
-
-Set-Content $htmlFile $htmlContent
+# 6. Update landing-page.html (and index.html if present)
+Write-Host "Updating landing-page.html..." -ForegroundColor Cyan
+foreach ($htmlFile in @("landing-page.html", "index.html")) {
+    if (Test-Path $htmlFile) {
+        $htmlContent = Get-Content $htmlFile -Raw
+        $newDownloadUrl = "https://github.com/Shukigeek/lingo-flix/releases/download/v$newVersion/app-release.apk"
+        $htmlContent = $htmlContent -replace 'https://github.com/Shukigeek/lingo-flix/releases/download/.*?/app-release\.apk"', "$newDownloadUrl`""
+        Set-Content $htmlFile $htmlContent
+    }
+}
 
 # 7. Git Commit & Push
 Write-Host "Committing and Pushing to Git..." -ForegroundColor Cyan
