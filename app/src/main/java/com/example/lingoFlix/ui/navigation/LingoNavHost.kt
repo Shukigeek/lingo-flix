@@ -14,6 +14,9 @@ import com.example.lingoFlix.ui.DiscoveryScreen
 import com.example.lingoFlix.ui.SettingsScreen
 import com.example.lingoFlix.ui.home.HomeActions
 import com.example.lingoFlix.ui.home.HomeRoute
+import com.example.lingoFlix.ui.library.LibraryRoute
+import com.example.lingoFlix.ui.library.MediaDetailRoute
+import com.example.lingoFlix.ui.player.PlayerRoute
 
 /**
  * The app's single navigation graph.
@@ -42,8 +45,8 @@ fun LingoNavHost(
                     onOpenLibrary = { navController.navigate(Route.LibraryRoot) },
                     onOpenSentences = { navController.navigate(Route.Sentences) },
                     onOpenPractice = { navController.navigate(Route.Practice) },
-                    // TODO(step 3): replace with the library import picker once
-                    //  LibraryScreen owns the SAF launchers.
+                    // The library owns the SAF pickers, so "add media" is simply
+                    // a jump to it rather than a second import entry point.
                     onAddMedia = { navController.navigate(Route.LibraryRoot) },
                     onOpenMedia = { mediaId -> navController.navigate(Route.MediaDetail(mediaId)) },
                 )
@@ -51,39 +54,43 @@ fun LingoNavHost(
             HomeRoute(actions = actions)
         }
 
-        // TODO(step 3): replace with LibraryScreen (folder tree, import, search).
+        // Both library destinations render the same screen: the only difference
+        // is whether a folder id reaches the ViewModel's SavedStateHandle.
         composable<Route.LibraryRoot> {
-            PlaceholderScreen(name = stringResource(R.string.library_title))
-        }
-
-        // TODO(step 3): replace with LibraryScreen scoped to Route.Library.folderId.
-        composable<Route.Library> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Library>()
-            PlaceholderScreen(
-                name = stringResource(R.string.library_title),
+            LibraryRoute(
+                onOpenFolder = { folderId -> navController.navigate(Route.Library(folderId)) },
+                onOpenMedia = { mediaId -> navController.navigate(Route.MediaDetail(mediaId)) },
                 onBack = navController::popBackStack,
-                detail = "folderId = ${route.folderId}",
             )
         }
 
-        // TODO(step 4): replace with MediaDetailScreen (subtitle tracks, sync offset).
-        composable<Route.MediaDetail> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.MediaDetail>()
-            PlaceholderScreen(
-                name = stringResource(R.string.detail_watch),
+        composable<Route.Library> {
+            LibraryRoute(
+                onOpenFolder = { folderId -> navController.navigate(Route.Library(folderId)) },
+                onOpenMedia = { mediaId -> navController.navigate(Route.MediaDetail(mediaId)) },
                 onBack = navController::popBackStack,
-                detail = "mediaId = ${route.mediaId}",
+                // Breadcrumb "library" jumps home in the tree rather than
+                // unwinding one folder at a time.
+                onOpenRoot = {
+                    navController.navigate(Route.LibraryRoot) {
+                        popUpTo<Route.LibraryRoot> { inclusive = true }
+                    }
+                },
             )
         }
 
-        // TODO(step 5): replace with PlayerScreen. Declared full screen: MainActivity
-        //  hides the bottom bar and drops content insets for this route.
-        composable<Route.Player> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Player>()
-            PlaceholderScreen(
-                name = stringResource(R.string.player_translation),
+        composable<Route.MediaDetail> {
+            MediaDetailRoute(
                 onBack = navController::popBackStack,
-                detail = "mediaId = ${route.mediaId}, startMs = ${route.startMs}",
+                onPlay = { mediaId -> navController.navigate(Route.Player(mediaId)) },
+                onLearn = { mediaId -> navController.navigate(Route.Player(mediaId)) },
+            )
+        }
+
+        // Video Player with subtitles and loop control
+        composable<Route.Player> {
+            PlayerRoute(
+                onBack = navController::popBackStack,
             )
         }
 

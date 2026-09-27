@@ -173,6 +173,7 @@
     <string name="detail_subtitle_attached">הכתוביות צורפו</string>
     <string name="detail_subtitle_failed">לא ניתן לקרוא את קובץ הכתוביות</string>
     <string name="detail_subtitle_deleted">הכתוביות נמחקו</string>
+    <string name="detail_delete_subtitle_body">רצועת הכתוביות והמשפטים שנותחו ממנה יימחקו.</string>
     <string name="detail_delete_media_body">הפריט יוסר מהספרייה יחד עם הכתוביות שלו. הקובץ עצמו לא יימחק.</string>
     <string name="detail_source_manual">צורף ידנית</string>
     <string name="detail_source_auto">הותאם אוטומטית</string>
