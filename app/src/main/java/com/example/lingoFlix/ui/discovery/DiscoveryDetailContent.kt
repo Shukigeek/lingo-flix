@@ -110,7 +110,7 @@ fun DiscoveryDetailContent(
                                 onAddToRecommendations(item)
                                 Toast.makeText(context, "נוסף למומלצי המערכת!", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
-                                LingoLog.e(className, "Failed to add recommendation", e)
+                                LingoLog.e("DiscoveryDetailContent", "Failed to add recommendation", e)
                             }
                         }
                     )
@@ -174,7 +174,7 @@ fun DiscoveryDetailContent(
                         }
                     }
                 } catch (e: Exception) {
-                    LingoLog.e(className, "Failed to launch Telegram", e)
+                    LingoLog.e("DiscoveryDetailContent", "Failed to launch Telegram", e)
                     Toast.makeText(context, "שגיאה בפתיחת טלגרם", Toast.LENGTH_SHORT).show()
                 }
             }

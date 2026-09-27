@@ -46,6 +46,9 @@ import com.example.lingoFlix.utils.FileUtils
 import com.example.lingoFlix.utils.SecurityUtils
 import com.example.lingoFlix.utils.SrtParser
 import com.example.lingoFlix.data.AppDatabase
+import com.example.lingoFlix.ui.UpdateBanner
+import com.example.lingoFlix.util.UpdateManager
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -148,6 +151,18 @@ class MainActivity : ComponentActivity() {
     var isRandomModeActive by rememberSaveable { mutableStateOf(false) }
     var quizDifficulty by rememberSaveable { mutableStateOf("קל") }
     var quizType by rememberSaveable { mutableStateOf("typing") }
+
+    // --- In-app update (from GitHub Releases) ---
+    val updateScope = rememberCoroutineScope()
+    var updateInfo by remember { mutableStateOf<UpdateManager.UpdateInfo?>(null) }
+    var updateDismissed by rememberSaveable { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        // Check GitHub for a newer version whenever the app starts (needs internet).
+        updateInfo = UpdateManager.checkForUpdate()
+    }
 
     // Re-apply immersive mode when screen changes to ensure consistency
     LaunchedEffect(currentScreen) {
@@ -352,7 +367,37 @@ class MainActivity : ComponentActivity() {
                     currentStreak = currentStreak,
                     userName = currentUser?.name ?: "לומד"
                 )
-                
+
+                // Show the update banner when a newer version is available on GitHub.
+                updateInfo?.let { info ->
+                    if (!updateDismissed) {
+                        UpdateBanner(
+                            updateInfo = info,
+                            isDownloading = isDownloadingUpdate,
+                            downloadProgress = updateProgress,
+                            onDismiss = { updateDismissed = true },
+                            onUpdateClick = {
+                                updateScope.launch {
+                                    isDownloadingUpdate = true
+                                    updateProgress = 0
+                                    val apk = UpdateManager.downloadApk(
+                                        context = context,
+                                        downloadUrl = info.downloadUrl,
+                                        onProgress = { p -> updateProgress = p }
+                                    )
+                                    isDownloadingUpdate = false
+                                    if (apk != null) {
+                                        UpdateManager.installApk(context, apk)
+                                    } else {
+                                        Toast.makeText(context, "הורדת העדכון נכשלה. נסה שוב.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+                }
+
                 if (showDifficultyDialogForRandom) {
                     DifficultySelectionDialog(
                         onDismiss = { showDifficultyDialogForRandom = false },

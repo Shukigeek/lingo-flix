@@ -54,7 +54,21 @@ class ExerciseViewModel : ViewModel() {
     fun nextQuestion(difficulty: GameLogic.Difficulty = GameLogic.Difficulty.EASY) {
         if (_questionIndex.value < allSegments.size && _hearts.value > 0) {
             val segment = allSegments[_questionIndex.value]
-            val question = GameLogic.generateQuestion(segment, difficulty)
+            val difficultyStr = when (difficulty) {
+                GameLogic.Difficulty.HARD -> "קשה"
+                GameLogic.Difficulty.MEDIUM -> "בינוני"
+                else -> "קל"
+            }
+            val quizData = GameLogic.prepareQuiz(segment.text, difficultyStr)
+            val maskedText = quizData.words
+                .mapIndexed { index, word -> if (index in quizData.hiddenIndices) "____" else word }
+                .joinToString("")
+            val targetWords = quizData.hiddenIndices.sorted().map { quizData.words[it] }
+            val question = Question(
+                fullText = segment.text,
+                maskedText = maskedText,
+                targetWords = targetWords
+            )
             _currentQuestion.value = question
             _shuffledWords.value = question.fullText.split(" ").filter { it.isNotBlank() }.shuffled()
             _questionIndex.value++
@@ -69,8 +83,7 @@ class ExerciseViewModel : ViewModel() {
         val isCorrect = answer.trim().lowercase() == current.fullText.trim().lowercase()
         
         if (isCorrect) {
-            val points = GameLogic.checkAnswer(answer, current.fullText)
-            _score.value += points
+            _score.value += 10 + (_streak.value * 2)
             _streak.value++
         } else {
             _hearts.value = (_hearts.value - 1).coerceAtLeast(0)

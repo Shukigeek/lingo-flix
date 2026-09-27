@@ -1,3 +1,99 @@
 <resources>
     <string name="app_name">Lingo Flix</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">בית</string>
+    <string name="nav_library">הספרייה</string>
+    <string name="nav_sentences">משפטים</string>
+    <string name="nav_practice">תרגול</string>
+    <string name="nav_profile">פרופיל</string>
+
+    <!-- Home -->
+    <string name="home_greeting">שלום 👋</string>
+    <string name="home_continue_watching">המשך מאיפה שהפסקת</string>
+    <string name="home_my_library">הספרייה שלי</string>
+    <string name="home_add_media">הוסף סרט</string>
+    <string name="home_empty_title">הספרייה ריקה</string>
+    <string name="home_empty_body">הוסף סרט או פרק כדי להתחיל ללמוד</string>
+    <string name="home_due_sentences">%d משפטים לחזרה</string>
+    <string name="home_saved_sentences">%d משפטים שמורים</string>
+    <string name="home_streak">%d ימים ברצף</string>
+
+    <!-- Library -->
+    <string name="library_title">הספרייה שלי</string>
+    <string name="library_add_video">הוסף קובץ</string>
+    <string name="library_add_folder">סרוק תיקייה</string>
+    <string name="library_new_folder">תיקייה חדשה</string>
+    <string name="library_empty">אין כאן עדיין כלום</string>
+    <string name="library_no_subtitles">ללא כתוביות</string>
+    <string name="library_importing">מייבא…</string>
+    <string name="library_import_result">יובאו %1$d פריטים, %2$d דולגו</string>
+    <string name="library_search_hint">חיפוש בספרייה</string>
+
+    <!-- Media detail -->
+    <string name="detail_watch">צפה</string>
+    <string name="detail_learn">התחל ללמוד</string>
+    <string name="detail_subtitles">כתוביות</string>
+    <string name="detail_attach_subtitle">צרף קובץ כתוביות</string>
+    <string name="detail_replace_subtitle">החלף</string>
+    <string name="detail_delete_subtitle">מחק כתוביות</string>
+    <string name="detail_sentence_count">%d משפטים</string>
+    <string name="detail_sync_offset">כוונון סנכרון</string>
+
+    <!-- Player -->
+    <string name="player_previous_sentence">משפט קודם</string>
+    <string name="player_next_sentence">משפט הבא</string>
+    <string name="player_loop">חזור על המשפט</string>
+    <string name="player_translation">תרגום</string>
+    <string name="player_save_sentence">שמור משפט</string>
+    <string name="player_saved">נשמר</string>
+    <string name="player_speed">מהירות</string>
+    <string name="player_no_subtitles">לא צורפו כתוביות לפריט הזה</string>
+
+    <!-- Sentences -->
+    <string name="sentences_title">המשפטים שלי</string>
+    <string name="sentences_empty_title">עוד לא שמרת משפטים</string>
+    <string name="sentences_empty_body">בזמן צפייה, לחץ על הכוכב כדי לשמור משפט</string>
+    <string name="sentences_filter_all">הכל</string>
+    <string name="sentences_filter_due">לחזרה</string>
+    <string name="sentences_filter_learned">נלמדו</string>
+    <string name="sentences_search_hint">חיפוש במשפטים</string>
+    <string name="sentences_play_clip">נגן את הקטע</string>
+    <string name="sentences_remove">הסר מהמועדפים</string>
+
+    <!-- Practice -->
+    <string name="practice_title">תרגול</string>
+    <string name="practice_start">התחל תרגול</string>
+    <string name="practice_nothing_due">אין משפטים לחזרה כרגע</string>
+    <string name="practice_nothing_due_body">חזור מאוחר יותר, או שמור משפטים חדשים</string>
+    <string name="practice_check">בדוק</string>
+    <string name="practice_continue">המשך</string>
+    <string name="practice_correct">נכון!</string>
+    <string name="practice_incorrect">כמעט…</string>
+    <string name="practice_summary_title">סיימת!</string>
+    <string name="practice_summary_score">%1$d מתוך %2$d</string>
+    <string name="practice_cloze_prompt">השלם את המילה החסרה</string>
+    <string name="practice_choice_prompt">מה המשמעות?</string>
+
+    <!-- Profile -->
+    <string name="profile_title">הפרופיל שלי</string>
+    <string name="profile_stats">ההתקדמות שלי</string>
+    <string name="profile_media_watched">סרטים בספרייה</string>
+    <string name="profile_sentences_saved">משפטים שמורים</string>
+    <string name="profile_sentences_learned">משפטים שנלמדו</string>
+    <string name="profile_streak">רצף ימים</string>
+    <string name="profile_settings">הגדרות</string>
+
+    <!-- Common -->
+    <string name="common_cancel">ביטול</string>
+    <string name="common_save">שמור</string>
+    <string name="common_delete">מחק</string>
+    <string name="common_rename">שנה שם</string>
+    <string name="common_move">העבר</string>
+    <string name="common_back">חזור</string>
+    <string name="common_search">חיפוש</string>
+    <string name="common_retry">נסה שוב</string>
+    <string name="common_ok">אישור</string>
+    <string name="common_loading">טוען…</string>
+    <string name="common_error">משהו השתבש</string>
 </resources>

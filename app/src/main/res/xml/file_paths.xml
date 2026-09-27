@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Downloaded APK is stored in the app's cache directory (getCacheDir()/updates) -->
+    <cache-path
+        name="updates"
+        path="updates/" />
+    <external-cache-path
+        name="external_updates"
+        path="updates/" />
+</paths>

@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -54,7 +56,20 @@ android {
     
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+}
+
+// Export the Room schema so migrations can be written and tested later on.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 // Rename the output APK (Modern API)
@@ -71,6 +86,7 @@ kotlin {
 }
 
 dependencies {
+    // ── Compose ───────────────────────────────────────────────
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.foundation)
@@ -81,36 +97,76 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.ui.text.google.fonts)
+
+    // ── AndroidX core ─────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.security.crypto)
+    // Needed to walk a SAF tree during folder import.
+    implementation(libs.androidx.documentfile)
+
+    // ── Navigation ────────────────────────────────────────────
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
+
+    // ── Dependency Injection ──────────────────────────────────
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
+
+    // ── Room ──────────────────────────────────────────────────
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // ── Media ─────────────────────────────────────────────────
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
+    // ── ML Kit / offline translation ──────────────────────────
+    implementation(libs.google.mlkit.translate)
+    implementation(libs.google.mlkit.language.id)
+
+    // ── Coroutines ────────────────────────────────────────────
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // ── Networking ────────────────────────────────────────────
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.retrofit.converter.scalars)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson)
+
+    // ── AI ────────────────────────────────────────────────────
+    implementation(libs.google.generativeai)
+
+    // ── Image loading & effects ───────────────────────────────
+    implementation(libs.coil.compose)
+    implementation(libs.konfetti.compose)
+
+    // ── Unit tests ────────────────────────────────────────────
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+
+    // ── Instrumented tests ────────────────────────────────────
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+
+    // ── Debug ─────────────────────────────────────────────────
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation(libs.androidx.media3.exoplayer)
-    implementation(libs.androidx.media3.ui)
-
-    // ML Kit & Offline features
-    implementation(libs.google.mlkit.translate)
-    implementation(libs.google.mlkit.language.id)
-
-    // AI & Networking
-    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-    implementation(libs.androidx.security.crypto)
-
-    // UI & Animations
-    implementation("nl.dionsegijn:konfetti-compose:2.0.4")
-    implementation("androidx.compose.ui:ui-text-google-fonts:1.6.8")
-
-    // Room Database
-    val room_version = "2.6.1"
-    implementation("androidx.room:room-runtime:$room_version")
-    implementation("androidx.room:room-ktx:$room_version")
-    ksp("androidx.room:room-compiler:$room_version")
 }
