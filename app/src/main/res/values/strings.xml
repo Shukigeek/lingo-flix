@@ -84,7 +84,115 @@
     <string name="profile_streak">רצף ימים</string>
     <string name="profile_settings">הגדרות</string>
 
+    <!-- Navigation (non bottom-bar destinations) -->
+    <string name="nav_search">חיפוש</string>
+    <string name="nav_settings">הגדרות</string>
+    <string name="nav_discovery">גילוי</string>
+
+    <!-- Home extras -->
+    <string name="home_play">נגן</string>
+    <string name="home_progress_time">%1$s / %2$s</string>
+    <string name="home_stat_due_label">משפטים לחזרה</string>
+    <string name="home_stat_saved_label">משפטים שמורים</string>
+    <string name="home_poster_of">כרזה של %s</string>
+
+    <!-- Placeholders for screens that are not implemented yet -->
+    <string name="placeholder_title">%s</string>
+    <string name="placeholder_body">המסך הזה עדיין בבנייה 🚧</string>
+
+    <!-- Library: browsing -->
+    <string name="library_empty_title">הספרייה ריקה</string>
+    <string name="library_empty_body">הוסף קובץ וידאו או סרוק תיקייה כדי להתחיל ללמוד</string>
+    <string name="library_folder_empty_title">התיקייה ריקה</string>
+    <string name="library_folder_empty_body">אין כאן עדיין כלום. אפשר לייבא קבצים ישירות לתיקייה הזו.</string>
+    <string name="library_no_results_title">אין תוצאות</string>
+    <string name="library_no_results_body">נסה לשנות את מילות החיפוש או לבטל את הסינון</string>
+    <string name="library_root">הספרייה</string>
+    <string name="library_section_folders">תיקיות</string>
+    <string name="library_section_items">פריטים</string>
+    <string name="library_folder_items">%d פריטים</string>
+    <string name="library_has_subtitles">יש כתוביות</string>
+    <string name="library_add">הוסף לספרייה</string>
+    <string name="library_close_search">סגור חיפוש</string>
+    <string name="library_clear_query">נקה חיפוש</string>
+    <string name="library_view_grid">תצוגת רשת</string>
+    <string name="library_view_list">תצוגת רשימה</string>
+    <string name="library_more_actions">פעולות נוספות</string>
+
+    <!-- Library: sorting and filtering -->
+    <string name="library_sort">מיון</string>
+    <string name="library_sort_title">לפי שם</string>
+    <string name="library_sort_recently_added">נוספו לאחרונה</string>
+    <string name="library_sort_recently_watched">נצפו לאחרונה</string>
+    <string name="library_filter_show_without_subtitles">הצג פריטים ללא כתוביות</string>
+    <string name="library_filter_only_unwatched">רק פריטים שלא סיימתי</string>
+
+    <!-- Library: management -->
+    <string name="library_folder_name_hint">שם התיקייה</string>
+    <string name="library_rename_folder">שנה שם לתיקייה</string>
+    <string name="library_delete_folder">מחק תיקייה</string>
+    <string name="library_delete_folder_body">התיקייה תימחק. הפריטים שבתוכה יעברו לספרייה הראשית.</string>
+    <string name="library_rename_item">שנה שם לפריט</string>
+    <string name="library_item_name_hint">שם הפריט</string>
+    <string name="library_delete_item">הסר מהספרייה</string>
+    <string name="library_delete_item_body">הפריט יוסר מהספרייה. הקובץ עצמו לא יימחק מהמכשיר.</string>
+    <string name="library_delete_selection">הסר %d פריטים</string>
+    <string name="library_delete_selection_body">הפריטים יוסרו מהספרייה. הקבצים עצמם לא יימחקו מהמכשיר.</string>
+    <string name="library_move_to">העבר לתיקייה</string>
+    <string name="library_selection_count">%d נבחרו</string>
+    <string name="library_clear_selection">בטל בחירה</string>
+    <string name="library_item_options">אפשרויות לפריט</string>
+    <string name="library_folder_options">אפשרויות לתיקייה</string>
+
+    <!-- Library: import and maintenance -->
+    <string name="library_prune">חפש קבצים חסרים</string>
+    <string name="library_prune_result">הוסרו %d פריטים שקובץ המקור שלהם נמחק</string>
+    <string name="library_prune_none">כל הקבצים בספרייה זמינים</string>
+    <string name="library_import_files_result">יובאו %1$d קבצים, %2$d נכשלו</string>
+    <string name="library_import_folder_result">יובאו %1$d, דולגו %2$d, הותאמו כתוביות ל‎%3$d</string>
+    <string name="library_import_failed">הייבוא נכשל</string>
+
+    <!-- Media detail -->
+    <string name="detail_overview">תקציר</string>
+    <string name="detail_show_more">קרא עוד</string>
+    <string name="detail_show_less">הצג פחות</string>
+    <string name="detail_runtime">%d דק׳</string>
+    <string name="detail_rating">IMDb %s</string>
+    <string name="detail_not_found">הפריט לא נמצא בספרייה</string>
+    <string name="detail_more_actions">פעולות נוספות</string>
+    <string name="detail_no_subtitles_title">עדיין אין כתוביות</string>
+    <string name="detail_no_subtitles_body">כדי ללמוד מהפריט הזה צריך קובץ כתוביות תואם</string>
+    <string name="detail_make_primary">הגדר ככתוביות ראשיות</string>
+    <string name="detail_primary">ראשי</string>
+    <string name="detail_track_options">אפשרויות לרצועה</string>
+    <string name="detail_sync_offset_value">היסט נוכחי: %s שניות</string>
+    <string name="detail_sync_later">מאוחר יותר</string>
+    <string name="detail_sync_earlier">מוקדם יותר</string>
+    <string name="detail_sync_reset">אפס</string>
+    <string name="detail_sync_help">אם הכתוביות מקדימות את הדיבור, הזז אותן מאוחר יותר</string>
+    <string name="detail_subtitle_attached">הכתוביות צורפו</string>
+    <string name="detail_subtitle_failed">לא ניתן לקרוא את קובץ הכתוביות</string>
+    <string name="detail_subtitle_deleted">הכתוביות נמחקו</string>
+    <string name="detail_delete_media_body">הפריט יוסר מהספרייה יחד עם הכתוביות שלו. הקובץ עצמו לא יימחק.</string>
+    <string name="detail_source_manual">צורף ידנית</string>
+    <string name="detail_source_auto">הותאם אוטומטית</string>
+    <string name="detail_source_embedded">מוטמע בקובץ</string>
+    <string name="detail_source_downloaded">הורד מהרשת</string>
+    <string name="detail_source_ai">נוצר בבינה מלאכותית</string>
+
+    <!-- Language names used to label subtitle tracks -->
+    <string name="lang_en">אנגלית</string>
+    <string name="lang_he">עברית</string>
+    <string name="lang_ar">ערבית</string>
+    <string name="lang_ru">רוסית</string>
+    <string name="lang_es">ספרדית</string>
+    <string name="lang_fr">צרפתית</string>
+    <string name="lang_de">גרמנית</string>
+    <string name="lang_ja">יפנית</string>
+    <string name="lang_zh">סינית</string>
+
     <!-- Common -->
+    <string name="common_see_all">הצג הכל</string>
     <string name="common_cancel">ביטול</string>
     <string name="common_save">שמור</string>
     <string name="common_delete">מחק</string>

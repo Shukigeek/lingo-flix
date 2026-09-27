@@ -103,6 +103,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Provides collectAsStateWithLifecycle() used by every stateful route wrapper.
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
     // Needed to walk a SAF tree during folder import.
