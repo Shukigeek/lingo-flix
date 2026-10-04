@@ -1,6 +1,7 @@
 package com.example.lingoFlix.data.repository
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import com.example.lingoFlix.core.di.IoDispatcher
 import com.example.lingoFlix.data.local.db.dao.SentenceDao
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileNotFoundException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -69,7 +72,7 @@ class SubtitleRepositoryImpl @Inject constructor(
             persistCues(trackId, cues)
             if (makePrimary) trackDao.makePrimary(mediaItemId, trackId)
             trackId
-        }.onFailure { LingoLog.w(TAG, "attachSubtitle failed for $uri: ${it.message}") }
+        }.onFailure { LingoLog.e(TAG, "attachSubtitle failed for $uri: ${it.message}", it) }
     }
 
     override suspend fun deleteTrack(trackId: Long) = withContext(ioDispatcher) {
@@ -120,11 +123,32 @@ class SubtitleRepositoryImpl @Inject constructor(
         trackDao.setSentenceCount(trackId, cues.size)
     }
 
-    private fun readBytes(uri: Uri): ByteArray = when (uri.scheme) {
-        null, "file" -> File(requireNotNull(uri.path) { "File URI without a path" }).readBytes()
-        else -> requireNotNull(context.contentResolver.openInputStream(uri)) {
-            "Cannot open $uri"
-        }.use { it.readBytes() }
+    private fun readBytes(uri: Uri): ByteArray {
+        if (uri.scheme == "content") {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            } catch (_: Exception) {
+                // Ignore if the provider does not support persistable permissions
+            }
+        }
+        return when (uri.scheme) {
+            null, "file" -> File(requireNotNull(uri.path) { "File URI without a path" }).readBytes()
+            else -> {
+                val fromStream = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+
+                fromStream ?: runCatching {
+                    context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                        FileInputStream(pfd.fileDescriptor).use { it.readBytes() }
+                    }
+                }.getOrNull()
+                ?: throw FileNotFoundException("Cannot read $uri via stream or file descriptor")
+            }
+        }
     }
 
     /** Copies the file into `filesDir/subtitles`, keyed by media item and source URI. */

@@ -35,6 +35,11 @@
     <string name="detail_learn">התחל ללמוד</string>
     <string name="detail_subtitles">כתוביות</string>
     <string name="detail_attach_subtitle">צרף קובץ כתוביות</string>
+    <string name="detail_ai_generate">צור כתוביות ב-AI ✨</string>
+    <string name="detail_ai_generating">מייצר כתוביות ב-AI...</string>
+    <string name="detail_ai_success">הכתוביות נוצרו בהצלחה ב-AI!</string>
+    <string name="detail_ai_failed">שגיאה ביצירת כתוביות ב-AI</string>
+    <string name="detail_ai_file_not_found">קובץ הווידאו המקומי אינו נגיש ליצירת AI</string>
     <string name="detail_replace_subtitle">החלף</string>
     <string name="detail_delete_subtitle">מחק כתוביות</string>
     <string name="detail_sentence_count">%d משפטים</string>

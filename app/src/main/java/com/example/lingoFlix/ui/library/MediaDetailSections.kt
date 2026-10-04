@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -270,7 +271,11 @@ fun OverviewSection(overview: String, modifier: Modifier = Modifier) {
 
 /** Pushes the user towards attaching a subtitle when none exists yet. */
 @Composable
-fun AttachSubtitleCallout(onAttach: () -> Unit, modifier: Modifier = Modifier) {
+fun AttachSubtitleCallout(
+    onAttach: () -> Unit,
+    onGenerateAi: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(LingoRadius.md),
@@ -293,6 +298,11 @@ fun AttachSubtitleCallout(onAttach: () -> Unit, modifier: Modifier = Modifier) {
                 text = stringResource(R.string.detail_attach_subtitle),
                 onClick = onAttach,
                 icon = Icons.Default.Subtitles,
+            )
+            SecondaryButton(
+                text = stringResource(R.string.detail_ai_generate),
+                onClick = onGenerateAi,
+                icon = Icons.Default.AutoAwesome,
             )
         }
     }

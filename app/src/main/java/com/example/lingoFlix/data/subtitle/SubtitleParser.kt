@@ -37,12 +37,12 @@ object SubtitleParser {
     private const val MAX_CUE_DURATION_MS = 30_000L
 
     private val TIMING_LINE = Regex(
-        """(\d{1,3}):(\d{2}):(\d{2})[.,](\d{1,3})\s*-->\s*(\d{1,3}):(\d{2}):(\d{2})[.,](\d{1,3})"""
+        """(\d{1,3})[:.](\d{2})[:.](\d{2})(?:[.,](\d{1,4}))?\s*(?:-->|->|–>|—>|~>)\s*(\d{1,3})[:.](\d{2})[:.](\d{2})(?:[.,](\d{1,4}))?"""
     )
 
-    /** Two-digit VTT timestamps such as `01:22.500`. */
+    /** Two-digit VTT timestamps such as `01:22.500` or `01:22`. */
     private val SHORT_TIMING_LINE = Regex(
-        """(\d{1,3}):(\d{2})[.,](\d{1,3})\s*-->\s*(\d{1,3}):(\d{2})[.,](\d{1,3})"""
+        """(\d{1,2})[:.](\d{2})(?:[.,](\d{1,4}))?\s*(?:-->|->|–>|—>|~>)\s*(\d{1,2})[:.](\d{2})(?:[.,](\d{1,4}))?"""
     )
 
     private val HTML_TAG = Regex("<[^>]*>")
@@ -69,6 +69,8 @@ object SubtitleParser {
         val normalized = content
             .replace("\r\n", "\n")
             .replace('\r', '\n')
+            .replace('\u00A0', ' ')
+            .replace("\u200B", "")
             .removePrefix("\uFEFF")
 
         val cues = mutableListOf<ParsedCue>()
@@ -168,18 +170,19 @@ object SubtitleParser {
     private fun readTiming(line: String): Pair<Long, Long>? {
         TIMING_LINE.find(line)?.let { m ->
             val g = m.groupValues
-            return toMs(g[1], g[2], g[3], g[4]) to toMs(g[5], g[6], g[7], g[8])
+            return toMs(g[1], g[2], g[3], g[4].takeIf { it.isNotEmpty() }) to
+                toMs(g[5], g[6], g[7], g[8].takeIf { it.isNotEmpty() })
         }
         SHORT_TIMING_LINE.find(line)?.let { m ->
             val g = m.groupValues
-            return toMs("0", g[1], g[2], g[3]) to toMs("0", g[4], g[5], g[6])
+            return toMs("0", g[1], g[2], g[3].takeIf { it.isNotEmpty() }) to
+                toMs("0", g[4], g[5], g[6].takeIf { it.isNotEmpty() })
         }
         return null
     }
 
-    private fun toMs(hours: String, minutes: String, seconds: String, fraction: String): Long {
-        // A 1- or 2-digit fraction means tenths/hundredths, not milliseconds.
-        val millis = fraction.padEnd(3, '0').take(3).toLong()
+    private fun toMs(hours: String, minutes: String, seconds: String, fraction: String?): Long {
+        val millis = if (fraction.isNullOrBlank()) 0L else fraction.padEnd(3, '0').take(3).toLong()
         return hours.toLong() * 3_600_000 +
             minutes.toLong() * 60_000 +
             seconds.toLong() * 1_000 +

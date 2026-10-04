@@ -1,13 +1,16 @@
 package com.example.lingoFlix.ui.library
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lingoFlix.R
+import com.example.lingoFlix.data.local.db.entity.LOCAL_USER_ID
 import com.example.lingoFlix.domain.model.SubtitleTrack
 import com.example.lingoFlix.domain.repository.LibraryRepository
 import com.example.lingoFlix.domain.repository.SubtitleRepository
+import com.example.lingoFlix.utils.SubtitleGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -79,13 +83,48 @@ class MediaDetailViewModel @Inject constructor(
                 makePrimary = makePrimary,
             )
             attaching.value = false
-            message.value = context.getString(
-                if (result.isSuccess) {
-                    R.string.detail_subtitle_attached
+            message.value = if (result.isSuccess) {
+                context.getString(R.string.detail_subtitle_attached)
+            } else {
+                val ex = result.exceptionOrNull()
+                val err = if (ex?.message.isNullOrBlank()) {
+                    ex?.javaClass?.name ?: "Unknown error"
                 } else {
-                    R.string.detail_subtitle_failed
-                },
-            )
+                    ex.message
+                }
+                "${context.getString(R.string.detail_subtitle_failed)}: $err"
+            }
+        }
+    }
+
+    fun generateSubtitlesWithAi() {
+        val item = uiState.value.item ?: return
+        viewModelScope.launch {
+            attaching.value = true
+            message.value = context.getString(R.string.detail_ai_generating)
+
+            val file = File(Uri.parse(item.fileUri).path ?: "")
+            if (!file.exists()) {
+                attaching.value = false
+                message.value = context.getString(R.string.detail_ai_file_not_found)
+                return@launch
+            }
+
+            val result = SubtitleGenerator.generateSubtitles(context, file, LOCAL_USER_ID) { progressMsg ->
+                message.value = progressMsg
+            }
+
+            attaching.value = false
+            if (result.isSuccess) {
+                val srtFile = result.getOrNull()
+                if (srtFile != null) {
+                    subtitleRepository.attachSubtitle(mediaId, srtFile.toURI().toString(), makePrimary = true)
+                    message.value = context.getString(R.string.detail_ai_success)
+                }
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Unknown error"
+                message.value = "${context.getString(R.string.detail_ai_failed)}: $err"
+            }
         }
     }
 

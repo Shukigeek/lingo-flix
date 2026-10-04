@@ -45,6 +45,7 @@ data class MediaDetailActions(
     val onLearn: (mediaId: Long) -> Unit = {},
     /** Opens the system picker for a subtitle file. */
     val onPickSubtitle: () -> Unit = {},
+    val onGenerateAiSubtitle: () -> Unit = {},
     val onMakePrimary: (trackId: Long) -> Unit = {},
     val onSetOffset: (trackId: Long, offsetMs: Long) -> Unit = { _, _ -> },
     val onDeleteTrack: (trackId: Long) -> Unit = {},

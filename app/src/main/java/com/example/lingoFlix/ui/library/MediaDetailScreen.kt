@@ -65,6 +65,7 @@ fun MediaDetailRoute(
             // Not narrowed to text/*: providers routinely report .srt as
             // application/octet-stream, which such a filter would hide.
             onPickSubtitle = { pickSubtitle.launch(arrayOf(ANY_MIME_TYPE)) },
+            onGenerateAiSubtitle = viewModel::generateSubtitlesWithAi,
             onMakePrimary = viewModel::makePrimary,
             onSetOffset = viewModel::setOffset,
             onDeleteTrack = viewModel::deleteTrack,
@@ -173,6 +174,7 @@ private fun DetailContent(
                 onPlay = actions.onPlay,
                 onLearn = actions.onLearn,
                 onAttach = actions.onPickSubtitle,
+                onGenerateAi = actions.onGenerateAiSubtitle,
             )
         }
 
@@ -209,6 +211,7 @@ private fun PrimaryAction(
     onPlay: (Long) -> Unit,
     onLearn: (Long) -> Unit,
     onAttach: () -> Unit,
+    onGenerateAi: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -230,7 +233,10 @@ private fun PrimaryAction(
                 icon = Icons.Default.PlayArrow,
                 modifier = Modifier.fillMaxWidth(),
             )
-            AttachSubtitleCallout(onAttach = onAttach)
+            AttachSubtitleCallout(
+                onAttach = onAttach,
+                onGenerateAi = onGenerateAi,
+            )
         }
     }
 }

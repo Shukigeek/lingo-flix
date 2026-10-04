@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -79,14 +80,23 @@ fun LazyListScope.subtitleSection(
     }
 
     item {
-        SecondaryButton(
-            text = stringResource(R.string.detail_attach_subtitle),
-            onClick = actions.onPickSubtitle,
-            icon = Icons.Default.Subtitles,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = LingoSpacing.md, vertical = LingoSpacing.sm),
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = LingoSpacing.md, vertical = LingoSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(LingoSpacing.xs),
+        ) {
+            SecondaryButton(
+                text = stringResource(R.string.detail_attach_subtitle),
+                onClick = actions.onPickSubtitle,
+                icon = Icons.Default.Subtitles,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SecondaryButton(
+                text = stringResource(R.string.detail_ai_generate),
+                onClick = actions.onGenerateAiSubtitle,
+                icon = Icons.Default.AutoAwesome,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
